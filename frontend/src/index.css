@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.prose pre code.hljs,
+.ql-syntax {
+  background-color: #282c34 !important;
+  color: #abb2bf !important;
+  padding: 1em !important;
+  border-radius: 0.5em !important;
+  overflow-x: auto !important;
+  display: block !important;
+  font-family: 'Fira Code', 'Consolas', 'Menlo', 'Monaco', monospace !important;
+  font-size: 0.875em !important;
+  line-height: 1.6 !important;
+  white-space: pre !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.prose pre {
+  background-color: transparent !important;
+  padding: 0 !important;
+  margin-top: 1.5em !important;
+  margin-bottom: 1.5em !important;
+}
+
+.prose pre,
+article pre {
+  position: relative;
+  background-color: #282c34 !important;
+  border-radius: 0.5em !important;
+  margin-top: 1.5em !important;
+  margin-bottom: 1.5em !important;
+  padding: 1.25em !important;
+}
+
+.prose pre code.hljs,
+article pre code.hljs,
+.ql-syntax {
+  display: block;
+  overflow-x: auto;
+  padding: 1em !important;
+  color: #abb2bf !important;
+  background-color: transparent !important;
+  font-family: 'Fira Code', 'Consolas', 'Menlo', 'Monaco', 'Courier New', monospace !important;
+  font-size: 0.875em !important;
+  line-height: 1.6 !important;
+  white-space: pre !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  border-radius: 0.5em !important;
+}
+
+.copy-code-button {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  background-color: #4b5563;
+  color: white;
+  border: 1px solid;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out, 0.25s ease-in-out, background-color 0.2s ease-in-out;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.prose pre:hover .copy-code-button,
+article pre:hover .copy-code-button {
+  opacity: 1;
+}
+
+.copy-code-button:hover {
+  background-color: #374151;
+}
