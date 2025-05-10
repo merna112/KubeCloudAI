@@ -19,8 +19,12 @@
       "destination": "/backend/server.js"
     },
     {
+      "source": "/assets/(.*)", 
+      "destination": "/frontend/assets/$1" 
+    },
+    {
       "source": "/(.*)",
-      "destination": "/frontend/index.html" 
+      "destination": "/frontend/index.html"
     }
   ]
 }
