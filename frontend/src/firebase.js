@@ -1,16 +1,16 @@
 import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDIs5XHXDjaFAfZU7d8TYgg-j7IZZG0JrE",
+  authDomain: "fullstack-blog-9b25f.firebaseapp.com",
+  projectId: "fullstack-blog-9b25f",
+  storageBucket: "fullstack-blog-9b25f.appspot.com",
+  messagingSenderId: "906951963054",
+  appId: "1:906951963054:web:af8c53d07ba2c88b6a983f"
 };
 
 const app = initializeApp(firebaseConfig);
-
-export default app;
-
+export const auth = getAuth(app);
+export const provider = new GoogleAuthProvider();
 
