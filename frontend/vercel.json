@@ -2,8 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "index.html",
-      "use": "@vercel/static-build",
+      "src": "package.json",
+      "use": "@vercel/node",
       "config": {
         "distDir": "dist"
       }
@@ -12,7 +12,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://kube-cloud-ewxhk2h4x-mernas-projects-7f85e274.vercel.app/api/$1"
+      "dest": "kube-cloud-bk61ghdco-mernas-projects-7f85e274.vercel.app/api/$1"
     },
     {
       "src": "/(.*)",
