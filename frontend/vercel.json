@@ -10,6 +10,13 @@
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/" }
+    {
+      "src": "/api/(.*)",
+      "dest": "https://kube-cloud-ewxhk2h4x-mernas-projects-7f85e274.vercel.app/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
