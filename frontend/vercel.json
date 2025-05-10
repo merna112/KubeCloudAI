@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://your-backend-actual-url.vercel.app/api/:path*"
+      "destination": "https://kube-cloud-5fid3mz2u-mernas-projects-7f85e274.vercel.app/api/:path*"
     }
   ]
 }
