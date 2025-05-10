@@ -1,19 +1,8 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "kube-cloud-bk61ghdco-mernas-projects-7f85e274.vercel.app/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/:path*",
+      "destination": "https://your-backend-actual-url.vercel.app/api/:path*"
     }
   ]
 }
