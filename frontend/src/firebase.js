@@ -1,19 +1,21 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth } from "firebase/auth"; 
 
-// Your web app's Firebase configuration
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDts5XHxDjaFAFZU7d8TYgg-j7fZZG0JrE",
-  authDomain: "fullstack-blog-9b25f.firebaseapp.com",
-  projectId: "fullstack-blog-9b25f",
-  storageBucket: "fullstack-blog-9b25f.appspot.com",
-  messagingSenderId: "906951963054",
-  appId: "1:906951963054:web:af8c53d07ba2c88b6a983f"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDts5XHxDjaFAFZU7d8TYgg-j7fZZG0JrE", // استخدمي متغيرات البيئة أولاً
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "fullstack-blog-9b25f.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "fullstack-blog-9b25f",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "fullstack-blog-9b25f.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "906951963054",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:906951963054:web:af8c53d07ba2c88b6a983f"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+const authInstance = getAuth(app); 
+
+export { authInstance as auth }; 
 
 export default app;
