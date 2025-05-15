@@ -40,7 +40,8 @@ export default function Home() {
     fetchPosts();
   }, []);
 
-  const recentPosts = Array.isArray(posts) ? posts.slice(0, 8) : [];
+
+  const recentPosts = Array.isArray(posts) ? posts.slice(0, 4) : [];
 
   return (
     <div className='bg-gray-100 dark:bg-gray-900 min-h-screen'>
@@ -87,7 +88,8 @@ export default function Home() {
                   <PostCard key={post._id} post={post} />
                 ))}
               </div>
-              {posts.length > 8 && (
+        
+              {posts.length > 4 && (
                 <div className='text-center mt-12'>
                   <Link
                     to='/search'
