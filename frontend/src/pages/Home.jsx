@@ -28,7 +28,15 @@ export default function Home() {
           throw new Error(`Failed to fetch posts, status: ${res.status}`);
         }
         const data = await res.json();
-        setPosts(data.posts || []);
+        let fetchedPosts = data.posts || [];
+
+        fetchedPosts.sort((a, b) => {
+          const dateA = new Date(a.updatedAt || a.createdAt);
+          const dateB = new Date(b.updatedAt || b.createdAt);
+          return dateB - dateA;
+        });
+
+        setPosts(fetchedPosts);
       } catch (err) {
         console.error('Failed to fetch posts:', err);
         setError(err.message);
@@ -39,7 +47,6 @@ export default function Home() {
     };
     fetchPosts();
   }, []);
-
 
   const recentPosts = Array.isArray(posts) ? posts.slice(0, 4) : [];
 
@@ -88,7 +95,6 @@ export default function Home() {
                   <PostCard key={post._id} post={post} />
                 ))}
               </div>
-        
               {posts.length > 4 && (
                 <div className='text-center mt-12'>
                   <Link
