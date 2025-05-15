@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PostCard from '../components/PostCard';
 
@@ -12,10 +12,11 @@ const INITIAL_SIDEBAR_DATA = {
 
 export default function Search() {
   const [sidebarData, setSidebarData] = useState(INITIAL_SIDEBAR_DATA);
-  const [posts, setPosts] = useState([]);
+  const [fetchedPosts, setFetchedPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -26,29 +27,39 @@ export default function Search() {
     const sortFromUrl = urlParams.get('sort');
     const categoryFromUrl = urlParams.get('category');
 
-    setSidebarData({
+    const newSidebarData = {
       searchTerm: searchTermFromUrl || INITIAL_SIDEBAR_DATA.searchTerm,
       sort: sortFromUrl || INITIAL_SIDEBAR_DATA.sort,
       category: categoryFromUrl || INITIAL_SIDEBAR_DATA.category,
-    });
+    };
+    setSidebarData(newSidebarData);
+    setCurrentPage(1);
 
     const fetchPostsData = async () => {
       setLoading(true);
       setFetchError(null);
-      setPosts([]); 
-      const searchQuery = urlParams.toString();
+      setFetchedPosts([]);
+
+      const paramsToFetch = new URLSearchParams();
+      if (newSidebarData.searchTerm) {
+        paramsToFetch.set('searchTerm', newSidebarData.searchTerm);
+      }
+      if (newSidebarData.category && newSidebarData.category !== 'uncategorized') {
+        paramsToFetch.set('category', newSidebarData.category);
+      }
+      const searchQuery = paramsToFetch.toString();
       try {
-        const res = await fetch(`/api/post/getposts?${searchQuery}`);
+        const res = await fetch(`/api/post/getposts?${searchQuery}&limit=${POSTS_PER_PAGE}&startIndex=0`);
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({ message: 'Failed to fetch posts. Server responded with an error.' }));
           throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
         }
         const data = await res.json();
-        setPosts(data.posts || []);
+        setFetchedPosts(data.posts || []);
         setShowMore((data.posts || []).length === POSTS_PER_PAGE);
       } catch (error) {
         setFetchError(error.message);
-        setPosts([]);
+        setFetchedPosts([]);
       } finally {
         setLoading(false);
       }
@@ -56,6 +67,14 @@ export default function Search() {
 
     fetchPostsData();
   }, [location.search]);
+
+  const displayedPosts = useMemo(() => {
+    let postsToDisplay = [...fetchedPosts];
+    if (sidebarData.sort === 'asc') {
+      return postsToDisplay.reverse();
+    }
+    return postsToDisplay;
+  }, [fetchedPosts, sidebarData.sort]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -71,20 +90,28 @@ export default function Search() {
     if (sidebarData.searchTerm) {
       urlParams.set('searchTerm', sidebarData.searchTerm);
     }
-    urlParams.set('sort', sidebarData.sort);
     if (sidebarData.category && sidebarData.category !== 'uncategorized') {
       urlParams.set('category', sidebarData.category);
-    } else if (sidebarData.category === 'uncategorized' && INITIAL_SIDEBAR_DATA.category !== 'uncategorized') {
-       urlParams.set('category', 'uncategorized');
     }
+    urlParams.set('sort', sidebarData.sort);
+    
     navigate(`/search?${urlParams.toString()}`);
   };
 
   const handleShowMore = async () => {
-    const numberOfPosts = posts.length;
-    const urlParams = new URLSearchParams(location.search);
-    urlParams.set('startIndex', numberOfPosts);
-    const searchQuery = urlParams.toString();
+    const startIndex = currentPage * POSTS_PER_PAGE;
+    
+    const paramsToFetch = new URLSearchParams();
+    if (sidebarData.searchTerm) {
+      paramsToFetch.set('searchTerm', sidebarData.searchTerm);
+    }
+    if (sidebarData.category && sidebarData.category !== 'uncategorized') {
+      paramsToFetch.set('category', sidebarData.category);
+    }
+    paramsToFetch.set('startIndex', startIndex);
+    paramsToFetch.set('limit', POSTS_PER_PAGE);
+
+    const searchQuery = paramsToFetch.toString();
     setLoading(true);
     try {
       const res = await fetch(`/api/post/getposts?${searchQuery}`);
@@ -93,8 +120,11 @@ export default function Search() {
         throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
       }
       const data = await res.json();
-      setPosts((prev) => [...prev, ...(data.posts || [])]);
+      setFetchedPosts((prev) => [...prev, ...(data.posts || [])]);
       setShowMore((data.posts || []).length === POSTS_PER_PAGE);
+      if ((data.posts || []).length > 0) {
+        setCurrentPage(prev => prev + 1);
+      }
     } catch (error) {
       setFetchError(error.message);
     } finally {
@@ -152,7 +182,7 @@ export default function Search() {
             className='w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:focus:ring-offset-gray-800'
             disabled={loading}
           >
-            {loading ? 'Applying...' : 'Apply Filters'}
+            {loading && !showMore ? 'Applying...' : 'Apply Filters'}
           </button>
         </form>
       </div>
@@ -165,7 +195,7 @@ export default function Search() {
             </div>
         )}
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6'>
-          {loading && posts.length === 0 && (
+          {loading && fetchedPosts.length === 0 && (
             Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow animate-pulse bg-white dark:bg-gray-800">
                     <div className="h-40 bg-gray-300 dark:bg-gray-600 rounded mb-4"></div>
@@ -177,8 +207,8 @@ export default function Search() {
                 </div>
             ))
           )}
-          {!loading && posts.length === 0 && !fetchError && <p className='col-span-full text-xl text-gray-500 dark:text-gray-400 text-center py-10'>No posts found matching your criteria.</p>}
-          {posts.map((post) => <PostCard key={post._id} post={post} />)}
+          {!loading && displayedPosts.length === 0 && !fetchError && <p className='col-span-full text-xl text-gray-500 dark:text-gray-400 text-center py-10'>No posts found matching your criteria.</p>}
+          {displayedPosts.map((post) => <PostCard key={post._id} post={post} />)}
         </div>
         {showMore && !loading && (
           <div className='text-center mt-8'>
@@ -190,6 +220,9 @@ export default function Search() {
             </button>
           </div>
         )}
+         {loading && fetchedPosts.length > 0 && (
+             <div className='text-center mt-8 text-gray-500 dark:text-gray-400'>Loading more posts...</div>
+         )}
       </div>
     </div>
   );
