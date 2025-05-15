@@ -2,34 +2,50 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { HiOutlineExclamationCircle } from 'react-icons/hi';
 
+const Spinner = () => (
+  <svg className="animate-spin h-8 w-8 text-sky-600 dark:text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
+
 export default function DashComments() {
   const { currentUser } = useSelector((state) => state.user);
   const [comments, setComments] = useState([]);
   const [showMore, setShowMore] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [commentIdToDelete, setCommentIdToDelete] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchComments = async () => {
+      setLoading(true);
       try {
         const res = await fetch(`/api/comment/getcomments`);
         const data = await res.json();
         if (res.ok) {
           setComments(data.comments);
-          if (data.comments.length < 9) {
-            setShowMore(false);
-          }
+          setShowMore(data.comments.length >= 9);
+        } else {
+          setComments([]);
+          setShowMore(false);
         }
       } catch (error) {
-        console.log(error.message);
+        setComments([]);
+        setShowMore(false);
+      } finally {
+        setLoading(false);
       }
     };
-    
-    if (currentUser.isAdmin) {
+
+    if (currentUser && currentUser.isAdmin) {
       fetchComments();
+    } else {
+      setComments([]);
+      setShowMore(false);
+      setLoading(false);
     }
-  }, [currentUser._id, currentUser.isAdmin]);
-  
+  }, [currentUser?.isAdmin, currentUser?._id]);
 
   const handleShowMore = async () => {
     const startIndex = comments.length;
@@ -63,7 +79,6 @@ export default function DashComments() {
         setComments((prev) =>
           prev.filter((comment) => comment._id !== commentIdToDelete)
         );
-        setShowModal(false);
       } else {
         console.log(data.message);
       }
@@ -73,89 +88,115 @@ export default function DashComments() {
   };
 
   return (
-    <div className='table-auto overflow-x-scroll p-3'>
-      {currentUser.isAdmin && comments.length > 0 ? (
+    <div className='p-3 md:p-6 w-full mx-auto dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen'>
+      {loading ? (
+        <div className="flex justify-center items-center min-h-[200px] py-10">
+          <Spinner />
+        </div>
+      ) : !currentUser || !currentUser.isAdmin ? (
+        <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-lg">
+          You are not authorized to view comments.
+        </p>
+      ) : comments.length === 0 ? (
+        <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-lg">
+          No comments found.
+        </p>
+      ) : (
         <>
-          <table className='min-w-full divide-y divide-gray-200 shadow-md'>
-            <thead className='bg-gray-50'>
-              <tr>
-                <th scope='col' className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Date Updated
-                </th>
-                <th scope='col' className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Comment Content
-                </th>
-                <th scope='col' className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Number of Likes
-                </th>
-                <th scope='col' className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  PostId
-                </th>
-                <th scope='col' className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  UserId
-                </th>
-                <th scope='col' className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Delete
-                </th>
-              </tr>
-            </thead>
-            <tbody className='bg-white divide-y divide-gray-200'>
-              {comments.map((comment) => (
-                <tr key={comment._id}>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    {new Date(comment.updatedAt).toLocaleDateString()}
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>{comment.content}</td>
-                  <td className='px-6 py-4 whitespace-nowrap'>{comment.numberOfLikes}</td>
-                  <td className='px-6 py-4 whitespace-nowrap'>{comment.postId}</td>
-                  <td className='px-6 py-4 whitespace-nowrap'>{comment.userId}</td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    <span
-                      onClick={() => {
-                        setShowModal(true);
-                        setCommentIdToDelete(comment._id);
-                      }}
-                      className='text-red-600 hover:underline cursor-pointer'
-                    >
-                      Delete
-                    </span>
-                  </td>
+          <div className="overflow-x-auto shadow-md rounded-lg border border-gray-200 dark:border-gray-700">
+            <table className='min-w-full w-full divide-y divide-gray-200 dark:divide-gray-700'>
+              <thead className='bg-gray-50 dark:bg-gray-700/50'>
+                <tr>
+                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                    Date Updated
+                  </th>
+                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider'>
+                    Comment Content
+                  </th>
+                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                    Likes
+                  </th>
+                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                    Post ID
+                  </th>
+                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                    User ID
+                  </th>
+                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                    Action
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className='bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700'>
+                {comments.map((comment) => (
+                  <tr key={comment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors duration-150">
+                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                      {new Date(comment.updatedAt).toLocaleDateString()}
+                    </td>
+                    <td className='px-2 py-4 sm:px-4 md:px-6 text-sm text-gray-800 dark:text-gray-200 break-words max-w-[140px] sm:max-w-[180px] md:max-w-xs lg:max-w-sm xl:max-w-md'>
+                      {comment.content}
+                    </td>
+                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 text-center'>
+                      {comment.numberOfLikes}
+                    </td>
+                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                      {comment.postId}
+                    </td>
+                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                      {comment.userId}
+                    </td>
+                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm'>
+                      <button
+                        onClick={() => {
+                          setShowModal(true);
+                          setCommentIdToDelete(comment._id);
+                        }}
+                        className='font-medium text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-400 hover:underline focus:outline-none'
+                        aria-label={`Delete comment by user ${comment.userId}`}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {showMore && (
             <button
               onClick={handleShowMore}
-              className='w-full text-teal-500 text-sm py-3'
+              className='w-full text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 text-sm font-medium py-3 mt-4 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 rounded-md'
             >
               Show more
             </button>
           )}
         </>
-      ) : (
-        <p>You have no comments yet!</p>
       )}
 
       {showModal && (
-        <div className='fixed inset-0 z-10 flex items-center justify-center bg-black bg-opacity-50'>
-          <div className='bg-white rounded-lg p-6 max-w-sm mx-auto'>
-            <HiOutlineExclamationCircle className='h-14 w-14 text-gray-400 mb-4 mx-auto' />
-            <h3 className='mb-5 text-lg text-gray-500 text-center'>
-              Are you sure you want to delete this comment?
-            </h3>
-            <div className='flex justify-center gap-4'>
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 transition-opacity duration-300 ease-in-out'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 sm:p-6 max-w-md w-full transform transition-all duration-300 ease-in-out scale-95 opacity-0 data-[state=open]:scale-100 data-[state=open]:opacity-100' data-state={showModal ? "open" : "closed"}>
+            <div className="text-center">
+              <HiOutlineExclamationCircle className='h-12 w-12 sm:h-14 sm:w-14 text-gray-400 dark:text-gray-500 mb-4 mx-auto' />
+              <h3 className='mb-2 text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-100'>
+                Confirm Deletion
+              </h3>
+              <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+                Are you sure you want to delete this comment? This action cannot be undone.
+              </p>
+            </div>
+            <div className='flex flex-col sm:flex-row-reverse justify-center gap-3'>
               <button
                 onClick={handleDeleteComment}
-                className='bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700'
+                className='w-full sm:w-auto bg-red-600 text-white py-2.5 px-5 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors font-medium'
               >
-                Yes, I’m sure
+                Yes, Delete
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className='bg-gray-200 text-gray-700 py-2 px-4 rounded hover:bg-gray-300'
+                className='w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-2.5 px-5 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors font-medium'
               >
-                No, cancel
+                Cancel
               </button>
             </div>
           </div>
