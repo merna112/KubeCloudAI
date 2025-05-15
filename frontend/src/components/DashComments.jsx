@@ -87,90 +87,145 @@ export default function DashComments() {
     }
   };
 
-  return (
-    <div className='p-3 md:p-6 w-full mx-auto dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen'>
-      {loading ? (
-        <div className="flex justify-center items-center min-h-[200px] py-10">
-          <Spinner />
-        </div>
-      ) : !currentUser || !currentUser.isAdmin ? (
-        <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-lg">
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen py-10 dark:bg-gray-900">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!currentUser || !currentUser.isAdmin) {
+    return (
+      <div className="flex justify-center items-center min-h-screen py-10 dark:bg-gray-900">
+        <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
           You are not authorized to view comments.
         </p>
-      ) : comments.length === 0 ? (
-        <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-lg">
+      </div>
+    );
+  }
+
+  if (comments.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-screen py-10 dark:bg-gray-900">
+        <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
           No comments found.
         </p>
-      ) : (
-        <>
-          <div className="overflow-x-auto shadow-md rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className='min-w-full w-full divide-y divide-gray-200 dark:divide-gray-700'>
-              <thead className='bg-gray-50 dark:bg-gray-700/50'>
-                <tr>
-                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
-                    Date Updated
-                  </th>
-                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider'>
-                    Comment Content
-                  </th>
-                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
-                    Likes
-                  </th>
-                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
-                    Post ID
-                  </th>
-                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
-                    User ID
-                  </th>
-                  <th scope='col' className='px-2 py-3 sm:px-4 md:px-6 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className='bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700'>
-                {comments.map((comment) => (
-                  <tr key={comment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors duration-150">
-                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
-                      {new Date(comment.updatedAt).toLocaleDateString()}
-                    </td>
-                    <td className='px-2 py-4 sm:px-4 md:px-6 text-sm text-gray-800 dark:text-gray-200 break-words max-w-[140px] sm:max-w-[180px] md:max-w-xs lg:max-w-sm xl:max-w-md'>
-                      {comment.content}
-                    </td>
-                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 text-center'>
-                      {comment.numberOfLikes}
-                    </td>
-                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
-                      {comment.postId}
-                    </td>
-                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
-                      {comment.userId}
-                    </td>
-                    <td className='px-2 py-4 sm:px-4 md:px-6 whitespace-nowrap text-sm'>
-                      <button
-                        onClick={() => {
-                          setShowModal(true);
-                          setCommentIdToDelete(comment._id);
-                        }}
-                        className='font-medium text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-400 hover:underline focus:outline-none'
-                        aria-label={`Delete comment by user ${comment.userId}`}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {showMore && (
+      </div>
+    );
+  }
+
+  return (
+    <div className='px-2 py-4 sm:px-4 md:p-6 w-full mx-auto dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen'>
+      {/* Table for medium screens and up (md breakpoint) */}
+      <div className="hidden md:block shadow-md rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <table className='min-w-full w-full divide-y divide-gray-200 dark:divide-gray-700'>
+          <thead className='bg-gray-50 dark:bg-gray-700/50'>
+            <tr>
+              <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                Date Updated
+              </th>
+              <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider'>
+                Comment Content
+              </th>
+              <th scope='col' className='px-3 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                Likes
+              </th>
+              <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                Post ID
+              </th>
+              <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                User ID
+              </th>
+              <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody className='bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700'>
+            {comments.map((comment) => (
+              <tr key={comment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors duration-150">
+                <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                  {new Date(comment.updatedAt).toLocaleDateString()}
+                </td>
+                <td className='px-3 py-4 text-sm text-gray-800 dark:text-gray-200 break-words max-w-xs'>
+                  {comment.content}
+                </td>
+                <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 text-center'>
+                  {comment.numberOfLikes}
+                </td>
+                <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                  {comment.postId}
+                </td>
+                <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                  {comment.userId}
+                </td>
+                <td className='px-3 py-4 whitespace-nowrap text-sm'>
+                  <button
+                    onClick={() => {
+                      setShowModal(true);
+                      setCommentIdToDelete(comment._id);
+                    }}
+                    className='font-medium text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-400 hover:underline focus:outline-none'
+                    aria-label={`Delete comment by user ${comment.userId}`}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Cards for small screens (up to md breakpoint) */}
+      <div className="md:hidden space-y-4">
+        {comments.map((comment) => (
+          <div key={comment._id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            <div className="mb-3">
+              <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">Comment:</span>
+              <p className="text-sm text-gray-800 dark:text-gray-200 break-words">{comment.content}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 text-sm">
+              <div>
+                <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">Date:</span>
+                <p className="text-gray-700 dark:text-gray-300">{new Date(comment.updatedAt).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">Likes:</span>
+                <p className="text-gray-700 dark:text-gray-300">{comment.numberOfLikes}</p>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">Post ID:</span>
+                <p className="text-gray-700 dark:text-gray-300 truncate" title={comment.postId}>{comment.postId}</p>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">User ID:</span>
+                <p className="text-gray-700 dark:text-gray-300 truncate" title={comment.userId}>{comment.userId}</p>
+              </div>
+            </div>
+
             <button
-              onClick={handleShowMore}
-              className='w-full text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 text-sm font-medium py-3 mt-4 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 rounded-md'
+              onClick={() => {
+                setShowModal(true);
+                setCommentIdToDelete(comment._id);
+              }}
+              className='w-full mt-2 font-medium text-red-600 bg-red-50 dark:bg-red-700/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700/40 py-2 px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-60 transition-colors'
             >
-              Show more
+              Delete Comment
             </button>
-          )}
-        </>
+          </div>
+        ))}
+      </div>
+
+      {showMore && (
+        <button
+          onClick={handleShowMore}
+          className='w-full text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 text-sm font-medium py-3 mt-6 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 rounded-md'
+        >
+          Show more
+        </button>
       )}
 
       {showModal && (
