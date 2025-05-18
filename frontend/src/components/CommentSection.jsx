@@ -54,11 +54,12 @@ export default function CommentSection({ postId }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`,
         },
         body: JSON.stringify({
           content: comment,
           postId,
-          userId: currentUser._id, 
+          // userId: currentUser._id, // Backend should ideally use req.user.id from token
         }),
       });
 
@@ -83,7 +84,10 @@ export default function CommentSection({ postId }) {
     try {
       const res = await fetch(`/api/comment/likeComment/${commentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`,
+        },
         body: JSON.stringify({ reaction: newReaction }),
       });
       if (res.ok) {
@@ -109,7 +113,10 @@ export default function CommentSection({ postId }) {
     try {
       const res = await fetch(`/api/comment/editComment/${commentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`,
+        },
         body: JSON.stringify({ content: newContent }),
       });
       if (res.ok) {
@@ -136,7 +143,7 @@ export default function CommentSection({ postId }) {
   };
 
   const handleDeleteComment = async () => {
-    if (!currentUser) {
+    if (!currentUser || !currentUser.token) { // Added check for token existence
         onRequireAuth(); 
         setShowModal(false);
         return;
@@ -145,6 +152,9 @@ export default function CommentSection({ postId }) {
     try {
       const res = await fetch(`/api/comment/deleteComment/${commentToDelete}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`,
+        },
       });
       if (res.ok) {
         setComments((prev) => prev.filter((c) => c._id !== commentToDelete));
@@ -172,7 +182,7 @@ export default function CommentSection({ postId }) {
 
   const handleReplySubmit = async (parentCommentId) => {
     const replyText = replyContent[parentCommentId];
-    if (!currentUser) { 
+    if (!currentUser || !currentUser.token) { // Added check for token existence
       onRequireAuth();
       return;
     }
@@ -183,10 +193,11 @@ export default function CommentSection({ postId }) {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentUser.token}`,
           },
           body: JSON.stringify({
             reply: replyText.trim(),
-            userId: currentUser._id,
+            // userId: currentUser._id, // Backend should ideally use req.user.id from token
           }),
         });
  
@@ -313,7 +324,7 @@ export default function CommentSection({ postId }) {
                     onClick={handleDeleteComment}
                     className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
                 >
-                    Yes, Iam sure
+                    Yes, I'm sure
                 </button>
                 <button
                     onClick={() => setShowModal(false)}

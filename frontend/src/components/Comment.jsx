@@ -26,13 +26,11 @@ export default function Comment({ comment, onLike, onEditSave, onDeleteRequest, 
       } else if (typeof comment.userId === 'string') {
         userIdToFetch = comment.userId;
       } else {
-        console.error("Unexpected type for comment.userId:", comment.userId, "for comment:", comment._id);
         setUser({ username: 'Invalid User Data', profilePicture: '/default-profile.png' });
         return;
       }
 
       if (!userIdToFetch) {
-        console.error("userIdToFetch is undefined for comment:", comment._id);
         setUser({ username: 'User ID Error', profilePicture: '/default-profile.png' });
         return;
       }
@@ -50,7 +48,6 @@ export default function Comment({ comment, onLike, onEditSave, onDeleteRequest, 
         const data = await res.json();
         setUser(data);
       } catch (error) {
-        console.error(`Error fetching user data for comment ${comment._id}:`, error.message);
         setUser({ username: 'Error Loading User', profilePicture: '/default-profile.png' });
       }
     };
@@ -63,6 +60,10 @@ export default function Comment({ comment, onLike, onEditSave, onDeleteRequest, 
   const canEditDelete = isOwner || isAdmin;
 
   const handleEditClick = () => {
+    if (!currentUser) {
+        onRequireAuth();
+        return;
+    }
     setIsEditing(true);
     setEditedContent(comment.content);
   };
@@ -77,7 +78,7 @@ export default function Comment({ comment, onLike, onEditSave, onDeleteRequest, 
   };
 
   const handleDeleteClick = () => {
-     if (!currentUser) { // Should not be reachable if button is hidden, but for safety
+     if (!currentUser) {
         onRequireAuth();
         return;
     }
