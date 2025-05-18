@@ -7,9 +7,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
-import { Button, Modal, Textarea as FlowbiteTextarea, Select as FlowbiteSelect } from 'flowbite-react';
+import { Button, Modal, Select as FlowbiteSelect } from 'flowbite-react';
 import { FaEdit, FaTrashAlt } from 'react-icons/fa';
-
 
 hljs.configure({
   languages: ['javascript', 'python', 'java', 'csharp', 'cpp', 'html', 'css', 'json', 'bash', 'sql', 'go', 'ruby', 'php'],
@@ -77,7 +76,6 @@ export default function UpdatePost() {
         fetchPost();
     }
   }, [postId]);
-
 
   const openLiveEditorModal = useCallback((editorData = null) => {
       if (editorData && editorData.editorId) {
@@ -148,7 +146,6 @@ export default function UpdatePost() {
         setFormData(prev => ({ ...prev, content: newContentHTML }));
     }
   };
-
 
   const modules = useMemo(() => ({
     toolbar: {
@@ -362,7 +359,7 @@ export default function UpdatePost() {
             </div>
             <div>
               <label htmlFor="initialCodeModal" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Initial Code</label>
-              <FlowbiteTextarea
+              <textarea
                 id="initialCodeModal"
                 value={currentEditorInitialCode}
                 onChange={(e) => setCurrentEditorInitialCode(e.target.value)}

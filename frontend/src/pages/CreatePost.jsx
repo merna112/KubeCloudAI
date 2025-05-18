@@ -6,7 +6,7 @@ import app from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
-import { Button, Modal, Textarea, Select as FlowbiteSelect } from 'flowbite-react'; // For Modal
+import { Button, Modal, Select as FlowbiteSelect } from 'flowbite-react';
 
 hljs.configure({
   languages: ['javascript', 'python', 'java', 'csharp', 'cpp', 'html', 'css', 'json', 'bash', 'sql', 'go', 'ruby', 'php'],
@@ -62,7 +62,6 @@ export default function CreatePost() {
         alert("Initial code cannot be empty.");
     }
   };
-
 
   const modules = useMemo(() => ({
     toolbar: {
@@ -247,14 +246,14 @@ export default function CreatePost() {
             </div>
             <div>
               <label htmlFor="initialCode" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Initial Code</label>
-              <Textarea
+              <textarea
                 id="initialCode"
                 value={currentEditorInitialCode}
                 onChange={(e) => setCurrentEditorInitialCode(e.target.value)}
                 placeholder="Enter the default code for the editor..."
                 required
                 rows={10}
-                className="text-sm font-mono"
+                className="text-sm font-mono w-full p-2.5 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
               />
             </div>
           </div>
