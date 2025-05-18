@@ -11,11 +11,8 @@ if (process.env.GEMINI_API_KEY) {
     geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     geminiModel = geminiAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   } catch (error) {
-    console.error("ERROR initializing GoogleGenerativeAI:", error.message);
     geminiAI = null; geminiModel = null;
   }
-} else {
-  console.warn("GEMINI_API_KEY is not set. Gemini features will be unavailable.");
 }
 
 const safetySettings = [
@@ -31,34 +28,29 @@ async function findRelevantLocalContent(query) {
        const results = await Post.find({ $text: { $search: query } }, { score: { $meta: "textScore" } })
            .select('title slug content category')
            .sort({ score: { $meta: "textScore" }, updatedAt: -1 })
-           .limit(3);
+           .limit(2);
        return results.map(post => ({
            title: post.title,
            slug: post.slug,
            url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/post/${post.slug}`,
-           contentSnippet: post.content.substring(0, 500) + (post.content.length > 500 ? '...' : ''),
+           contentSnippet: post.content.substring(0, 300) + (post.content.length > 300 ? '...' : ''),
            category: post.category,
            source: 'local_article'
        }));
    } catch (error) {
-        if (error.message && error.message.includes('text index required')) {
-            console.warn("Text index not found for local content retrieval.");
-        } else {
-           console.error("Error during local content retrieval:", error.message);
-        }
        return [];
    }
 }
 
 function extractKeywordsForNews(message) {
-    const commonWords = /\b(what|is|the|a|an|about|latest|newest|news|updates|update|for|tell|me|give|some|info|information|on|related to|regarding|of|in)\b/gi;
+    const commonWords = /\b(what|is|the|a|an|about|latest|newest|news|updates|update|for|tell|me|give|some|info|information|on|related to|regarding|of|in|show)\b/gi;
     let keywords = message.toLowerCase().replace(commonWords, '').replace(/[?.,!]/g, '').trim();
     keywords = keywords.replace(/\s\s+/g, ' ');
-    if (!keywords && message.toLowerCase().includes("devops")) return "devops";
-    if (!keywords && message.toLowerCase().includes("ai")) return "ai";
-    if (!keywords && message.toLowerCase().includes("kubernetes")) return "kubernetes";
-    if (!keywords && message.toLowerCase().includes("cloud")) return "cloud";
-    return keywords || null;
+    if (!keywords.trim() && message.toLowerCase().includes("devops")) return "devops";
+    if (!keywords.trim() && message.toLowerCase().includes("ai")) return "ai";
+    if (!keywords.trim() && message.toLowerCase().includes("kubernetes")) return "kubernetes";
+    if (!keywords.trim() && message.toLowerCase().includes("cloud")) return "cloud";
+    return keywords.trim() || null;
 }
 
 const handleChatMessage = async (req, res, next) => {
@@ -74,45 +66,54 @@ const handleChatMessage = async (req, res, next) => {
   let retrievedArticles = [];
 
   try {
-    retrievedArticles = await findRelevantLocalContent(trimmedMessage);
-
     const isNewsQuery = trimmedMessage.toLowerCase().includes("news") ||
                         trimmedMessage.toLowerCase().includes("latest") ||
                         trimmedMessage.toLowerCase().includes("update") ||
                         trimmedMessage.toLowerCase().includes("newest");
 
-    if (isNewsQuery) {
-        const newsKeyword = extractKeywordsForNews(trimmedMessage);
-        const newsItems = await getLatestTechNews(newsKeyword);
-        if (newsItems && newsItems.length > 0) {
-            source = "rss_feeds";
-            botReplyText = "Here are some recent headlines I found from external tech feeds:\n\n";
-            newsItems.forEach(item => {
-                botReplyText += `- ${item.title} (${item.link})\n`;
-            });
-            retrievedArticles = retrievedArticles.concat(newsItems.map(n => ({ title: n.title, url: n.link, source: 'rss_feed' })));
-        }
+    const localContentPromise = findRelevantLocalContent(trimmedMessage);
+    const newsPromise = isNewsQuery ? getLatestTechNews(extractKeywordsForNews(trimmedMessage)) : Promise.resolve([]);
+    
+    const [localContentResults, newsResults] = await Promise.all([localContentPromise, newsPromise]);
+
+    retrievedArticles = localContentResults || [];
+
+    if (isNewsQuery && newsResults && newsResults.length > 0) {
+        source = "rss_feeds";
+        botReplyText = "Here are some recent headlines I found from external tech feeds:\n\n";
+        newsResults.forEach(item => {
+            botReplyText += `- ${item.title} (${item.link})\n`;
+        });
+        retrievedArticles = retrievedArticles.concat(newsResults.map(n => ({ title: n.title, url: n.link, source: 'rss_feed' })));
     }
 
-    if (geminiModel && (!botReplyText || !isNewsQuery || (isNewsQuery && retrievedArticles.filter(a=>a.source === 'local_article').length > 0) )) {
+    if (!botReplyText && retrievedArticles.length > 0 && !isNewsQuery) {
+        source = "local_articles";
+        botReplyText = "I found these articles on KubeCloudAI that might be relevant:\n\n";
+        retrievedArticles.forEach(ctx => {
+            if (ctx.source === 'local_article') {
+                botReplyText += `- ${ctx.title} (${ctx.url})\n`;
+            }
+        });
+    }
+
+    if (geminiModel && (!botReplyText || (isNewsQuery && newsResults.length === 0 && retrievedArticles.filter(a=>a.source === 'local_article').length > 0 ))) {
         let promptContext = "No specific blog context found for this query.";
-        if (retrievedArticles.filter(a=>a.source === 'local_article').length > 0) {
+        const localContextForLLM = retrievedArticles.filter(a => a.source === 'local_article');
+        if (localContextForLLM.length > 0) {
             promptContext = "Context from KubeCloudAI blog:\n";
-            retrievedArticles.filter(a=>a.source === 'local_article').forEach(ctx => {
+            localContextForLLM.forEach(ctx => {
                 promptContext += `Article: "${ctx.title}" (Category: ${ctx.category})\nSnippet: ${ctx.contentSnippet}\n\n`;
             });
         }
         
         const prompt = `You are KubeCloudAI Assistant, a helpful expert for the KubeCloudAI blog (topics: Cloud, Virtualization, Kubernetes, AI, DevOps). Your goal is to answer the user's question.
-        
         Instructions:
         - Primarily use the "Context from KubeCloudAI blog" (if provided) to answer the "User Question".
-        - If the context answers the question, use that information. You can mention article title(s).
-        - If the context doesn't answer, or if there's no context, use your general knowledge for questions within the blog's topics (AI, Cloud, K8s, DevOps, Virtualization).
-        - If the question is about very recent news or events not covered by the context, and you have general knowledge, you can use it.
+        - If the context doesn't answer, or if there's no context, use your general knowledge for questions within the blog's topics.
+        - If the question is about very recent news not covered by context, and you have general knowledge, you can use it.
         - If the question is outside the blog's topics, politely state that it's outside your scope.
-        - Keep answers concise and helpful. Do not make up information.
-        
+        - Keep answers concise. Do not make up information.
         ${promptContext}
         User Question: ${trimmedMessage}`;
 
@@ -122,11 +123,13 @@ const handleChatMessage = async (req, res, next) => {
             for await (const chunk of result.stream) {
                 accumulatedText += chunk.text();
             }
-            botReplyText = accumulatedText.trim() || (isNewsQuery && botReplyText ? botReplyText : "Sorry, I couldn't generate a response using Gemini at this moment.");
-            if (accumulatedText.trim()) source = "gemini_ai";
-
+            if (accumulatedText.trim()) {
+                botReplyText = accumulatedText.trim();
+                source = "gemini_ai";
+            } else if (!botReplyText) {
+                // botReplyText = "Sorry, I couldn't generate a detailed response from Gemini at this moment.";
+            }
         } catch (geminiError) {
-            console.error("Error calling Google Gemini API:", geminiError.message);
             if (!botReplyText && process.env.HF_API_TOKEN) {
                  const hfAnswer = await getAnswerFromHuggingFace(trimmedMessage);
                  if (hfAnswer && !hfAnswer.toLowerCase().includes("error") && !hfAnswer.toLowerCase().includes("issue")) {
@@ -134,9 +137,8 @@ const handleChatMessage = async (req, res, next) => {
                      source = "huggingface_ai_fallback";
                  }
             }
-             if (!botReplyText && isNewsQuery) { /* Already handled by RSS or no news found */ }
-             else if (!botReplyText) {
-                botReplyText = "I encountered an issue with the primary AI assistant. Please try again later.";
+             if (!botReplyText) {
+                // botReplyText = "I encountered an issue with the primary AI assistant. Please try again later.";
              }
         }
     } else if (!botReplyText && process.env.HF_API_TOKEN) {
@@ -148,14 +150,14 @@ const handleChatMessage = async (req, res, next) => {
     }
     
     if (!botReplyText || botReplyText.trim() === "") {
-        if (retrievedArticles.filter(a=>a.source === 'local_article').length > 0 && !isNewsQuery) {
+        if (retrievedArticles.filter(a=>a.source === 'local_article').length > 0 && !isNewsQuery && source !== "local_articles") {
             botReplyText = "I found these articles that might be relevant to your query:\n\n";
             retrievedArticles.filter(a=>a.source === 'local_article').forEach(ctx => {
                 botReplyText += `- ${ctx.title} (${ctx.url})\n`;
             });
             source = "local_articles_fallback_display";
         } else {
-            botReplyText = "I'm sorry, I couldn't find a specific answer to your question at this moment. Please try rephrasing or asking about AI, Cloud, Kubernetes, or DevOps.";
+            botReplyText = "I'm sorry, I couldn't find a specific answer. Please try rephrasing or asking about AI, Cloud, Kubernetes, or DevOps.";
             source = "fallback_final";
         }
     }
@@ -163,26 +165,7 @@ const handleChatMessage = async (req, res, next) => {
     res.status(200).json({ reply: botReplyText.trim(), articles: retrievedArticles, source: source });
 
   } catch (error) {
-    console.error("Overall error in handleChatMessage:", error.message);
-    let statusCode = 500;
-    let message = "An error occurred while processing your chat request.";
-
-    if (error.message) {
-        if (error.message.includes('response was blocked due to safety') || error.message.includes('SAFETY')) {
-             statusCode = 400;
-             message = 'My response was blocked due to safety settings. Please rephrase your question.';
-        } else if (error.message.includes('API key not valid')) {
-             statusCode = 401;
-             message = 'Invalid API Key for a chat service.';
-        } else if (error.message.includes('429') || (error.status === 429)) {
-             statusCode = 429;
-             message = 'Chat service quota exceeded or rate limited. Please try again later.';
-        } else if (error.message.includes('404') || error.message.includes('Not Found') || (error.status === 404)) {
-             statusCode = 404;
-             message = 'Chat service endpoint or model not found. Please check configuration.';
-        }
-    }
-    next(errorHandler(statusCode, message));
+    next(errorHandler(500, "An error occurred while processing your chat request."));
   }
 };
 

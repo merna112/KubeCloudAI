@@ -1,34 +1,22 @@
 const Parser = require('rss-parser');
-const parser = new Parser();
+const parser = new Parser({ timeout: 5000 });
 
 const TECH_FEEDS = [
     'https://www.infoq.com/feed',
     'https://techcrunch.com/feed/',
     'https://feeds.feedburner.com/TheHackersNews',
-    'https://www.bleepingcomputer.com/feed/',
-    'https://www.wired.com/feed/category/security/latest/rss',
-    'https://www.darkreading.com/rss_simple.asp',
-    'https://krebsonsecurity.com/feed/',
-    'https://threatpost.com/feed/',
     'https://venturebeat.com/category/ai/feed/',
     'https://aws.amazon.com/blogs/aws/feed/',
     'https://azurecomcdn.azureedge.net/en-us/updates/feed/',
     'https://cloud.google.com/blog/feed',
     'https://kubernetes.io/feed.xml',
-    'https://www.docker.com/blog/feed/',
-    'https://www.ansible.com/blog/feed',
-    'https://www.hashicorp.com/blog/feed.xml',
-    'https://about.gitlab.com/atom.xml',
-    'https://www.jenkins.io/atom.xml',
-    'https://www.atlassian.com/blog/feed',
-    'https://www.infoworld.com/category/devops/index.rss',
     'https://devops.com/feed/',
     'https://dzone.com/rss.xml'
 ];
 
 async function getLatestTechNews(keyword) {
     const allItems = [];
-    for (const feedUrl of TECH_FEEDS) {
+    const feedPromises = TECH_FEEDS.map(async (feedUrl) => {
         try {
             const feed = await parser.parseURL(feedUrl);
             feed.items.forEach(item => {
@@ -49,16 +37,20 @@ async function getLatestTechNews(keyword) {
                         title: item.title || 'No Title', 
                         link: item.link || '#', 
                         date: item.isoDate || item.pubDate || new Date().toISOString(),
-                        snippet: item.contentSnippet || (typeof item.content === 'string' ? item.content.substring(0,150) + '...' : 'No snippet available')
+                        snippet: item.contentSnippet || (typeof item.content === 'string' ? item.content.substring(0,150) + '...' : 'No snippet available'),
+                        source: 'rss_feed'
                     });
                 }
             });
         } catch (error) {
-            console.error(`Error fetching RSS feed ${feedUrl}:`, error.message);
+            // Silent error for timeout or feed fetch failure
         }
-    }
+    });
+
+    await Promise.allSettled(feedPromises);
+
     allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
-    return allItems.slice(0, 5);
+    return allItems.slice(0, 3);
 }
 
 module.exports = { getLatestTechNews };
