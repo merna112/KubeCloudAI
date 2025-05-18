@@ -5,7 +5,6 @@ const createComment = async (req, res, next) => {
   try {
     const { content, postId, parentId } = req.body;
 
-    console.log('User from token:', req.user); 
     if (!req.user || !req.user.id) {
       return next(new Error('Authentication failed: User ID is missing'));
     }
@@ -13,45 +12,62 @@ const createComment = async (req, res, next) => {
     const newComment = new Comment({
       content,
       postId,
-      userId: req.user.id, 
+      userId: req.user.id,
       parentId: parentId || null,
     });
 
     await newComment.save();
-    res.status(200).json(newComment);
+    const populatedComment = await Comment.findById(newComment._id).populate('userId', 'username profilePicture _id');
+    res.status(200).json(populatedComment || newComment);
   } catch (error) {
-    console.error('Error in createComment:', error);
     next(error);
   }
 };
 
-
-// Get all comments for a post, including nested replies
 const getPostComments = async (req, res, next) => {
   try {
-    // Get all comments for the post
     const comments = await Comment.find({ postId: req.params.postId })
+      .populate('userId', 'username profilePicture _id')
+      .populate({
+          path: 'replies',
+          populate: {
+             path: 'userId',
+             select: 'username profilePicture _id'
+          }
+       })
       .sort({ createdAt: -1 });
 
-    // Separate root comments (parentId is null) from replies (parentId is not null)
-    const rootComments = comments.filter(comment => !comment.parentId);
-    const replies = comments.filter(comment => comment.parentId);
+    const buildCommentTree = (allComments) => {
+      const commentMap = {};
+      const rootComments = [];
 
-    // Nest replies under their parent comment
-    const nestedComments = rootComments.map(rootComment => {
-      return {
-        ...rootComment._doc, // Spread the root comment properties
-        replies: replies.filter(reply => reply.parentId.toString() === rootComment._id.toString()), // Attach replies
-      };
-    });
+      allComments.forEach(comment => {
+        commentMap[comment._id.toString()] = { ...comment._doc, replies: [] };
+      });
 
+      allComments.forEach(comment => {
+        if (comment.parentId) {
+          const parentIdStr = comment.parentId.toString();
+          if (commentMap[parentIdStr]) {
+            commentMap[parentIdStr].replies.push(commentMap[comment._id.toString()]);
+          } else {
+            rootComments.push(commentMap[comment._id.toString()]);
+          }
+        } else {
+          rootComments.push(commentMap[comment._id.toString()]);
+        }
+      });
+      return rootComments;
+    };
+
+    const nestedComments = buildCommentTree(comments);
     res.status(200).json(nestedComments);
+
   } catch (error) {
     next(error);
   }
 };
 
-// Like or unlike a comment
 const likeComment = async (req, res, next) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -64,26 +80,28 @@ const likeComment = async (req, res, next) => {
     if (userIndex === -1) {
       comment.numberOfLikes += 1;
       comment.likes.push(req.user.id);
+      comment.reaction = 'like';
     } else {
-      comment.numberOfLikes -= 1;
+      comment.numberOfLikes = Math.max(0, comment.numberOfLikes - 1);
       comment.likes.splice(userIndex, 1);
+      comment.reaction = null;
     }
 
     await comment.save();
-    res.status(200).json(comment);
+    const populatedComment = await Comment.findById(comment._id).populate('userId', 'username profilePicture _id');
+    res.status(200).json(populatedComment || comment);
   } catch (error) {
     next(error);
   }
 };
 
-// Edit a comment
 const editComment = async (req, res, next) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) {
       return next(errorHandler(404, 'Comment not found'));
     }
-    if (comment.userId !== req.user.id && !req.user.isAdmin) {
+    if (comment.userId.toString() !== req.user.id && !req.user.isAdmin) {
       return next(errorHandler(403, 'You are not allowed to edit this comment'));
     }
 
@@ -91,31 +109,30 @@ const editComment = async (req, res, next) => {
       req.params.commentId,
       { content: req.body.content },
       { new: true }
-    );
+    ).populate('userId', 'username profilePicture _id');
     res.status(200).json(editedComment);
   } catch (error) {
     next(error);
   }
 };
 
-// Delete a comment
 const deleteComment = async (req, res, next) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) {
       return next(errorHandler(404, 'Comment not found'));
     }
-    if (comment.userId !== req.user.id && !req.user.isAdmin) {
+    if (comment.userId.toString() !== req.user.id && !req.user.isAdmin) {
       return next(errorHandler(403, 'You are not allowed to delete this comment'));
     }
     await Comment.findByIdAndDelete(req.params.commentId);
-    res.status(200).json('Comment has been deleted');
+    await Comment.deleteMany({ parentId: req.params.commentId });
+    res.status(200).json('Comment and its replies have been deleted');
   } catch (error) {
     next(error);
   }
 };
 
-// Get all comments (for admins only)
 const getComments = async (req, res, next) => {
   if (!req.user.isAdmin)
     return next(errorHandler(403, 'You are not allowed to get all comments'));
@@ -124,6 +141,7 @@ const getComments = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 9;
     const sortDirection = req.query.sort === 'desc' ? -1 : 1;
     const comments = await Comment.find()
+      .populate('userId', 'username profilePicture _id')
       .sort({ createdAt: sortDirection })
       .skip(startIndex)
       .limit(limit);
@@ -143,8 +161,6 @@ const getComments = async (req, res, next) => {
   }
 };
 
-
-// Add a new reply to a comment
 const addReply = async (req, res, next) => {
   const parentCommentId = req.params.commentId;
   const { reply } = req.body;
@@ -172,13 +188,25 @@ const addReply = async (req, res, next) => {
     });
 
     await newReplyDocument.save();
+    
+    const populatedParentComment = await Comment.findById(parentCommentId)
+        .populate('userId', 'username profilePicture _id')
+        .populate({
+            path: 'replies',
+            populate: { path: 'userId', select: 'username profilePicture _id' }
+        });
 
-    const populatedReply = await Comment.findById(newReplyDocument._id).populate('userId', 'username profilePicture _id'); 
-
-    res.status(201).json(populatedReply || newReplyDocument); 
+    if (populatedParentComment) {
+        const newReply = populatedParentComment.replies.find(r => r._id.toString() === newReplyDocument._id.toString());
+        if (newReply) {
+             return res.status(201).json(newReply);
+        }
+    }
+    
+    const finalReply = await Comment.findById(newReplyDocument._id).populate('userId', 'username profilePicture _id');
+    res.status(201).json(finalReply || newReplyDocument);
 
   } catch (error) {
-    console.error("Error in addReply controller (new model):", error);
     next(error);
   }
 };
