@@ -11,27 +11,35 @@ const commentSchema = new mongoose.Schema(
       ref: 'Post',
       required: true,
     },
-    userId: { 
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
-    parentId: { 
+    parentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Comment',
-      default: null, 
+      default: null,
     },
     likes: {
       type: [mongoose.Schema.Types.ObjectId],
-      ref: 'User', 
+      ref: 'User',
       default: [],
     },
     numberOfLikes: {
       type: Number,
       default: 0,
-    }
+    },
+    reaction: {
+        type: String,
+        default: null,
+    },
+    replies: [{ 
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment' 
+    }]
   },
-  { timestamps: true } 
+  { timestamps: true }
 );
 
 const Comment = mongoose.model('Comment', commentSchema);
