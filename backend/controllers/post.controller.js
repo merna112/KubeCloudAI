@@ -75,23 +75,30 @@ const getposts = async (req, res, next) => {
     try {
         const startIndex = parseInt(req.query.startIndex) || 0;
         const limit = parseInt(req.query.limit) || 9;
-        const sortOrder = req.query.sort === 'asc' ? 1 : -1;
-
-        const query = {};
-            if (req.query.userId) query.userId = req.query.userId;
-            if (req.query.category && req.query.category !== 'uncategorized') query.category = req.query.category;
-            if (req.query.slug) query.slug = req.query.slug;
-            if (req.query.postId) query._id = req.query.postId;
-            if (req.query.searchTerm) {
-                query.$or = [
-                    { title: { $regex: req.query.searchTerm, $options: 'i' } },
-                    { content: { $regex: req.query.searchTerm, $options: 'i' } },
-                ];
-            }
         
+        const query = {};
+        let sortOptions = {};
 
+        const requestedSort = req.query.sort || 'desc';
+
+        if (req.query.userId) query.userId = req.query.userId;
+        if (req.query.category && req.query.category !== 'uncategorized') query.category = req.query.category;
+        if (req.query.slug) query.slug = req.query.slug;
+        if (req.query.postId) query._id = req.query.postId;
+
+        if (req.query.searchTerm) {
+            query.$text = { $search: req.query.searchTerm };
+            if (requestedSort === 'relevance') { 
+                 sortOptions = { score: { $meta: "textScore" } };
+            } else {
+                 sortOptions = { score: { $meta: "textScore" }, updatedAt: requestedSort === 'asc' ? 1 : -1 };
+            }
+        } else {
+            sortOptions = { updatedAt: requestedSort === 'asc' ? 1 : -1 };
+        }
+        
         const posts = await Post.find(query)
-            .sort({ updatedAt: sortOrder })
+            .sort(sortOptions)
             .skip(startIndex)
             .limit(limit);
 
@@ -99,10 +106,16 @@ const getposts = async (req, res, next) => {
 
         const now = new Date();
         const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-        const lastMonthPosts = await Post.countDocuments({
-            createdAt: { $gte: oneMonthAgo },
-            ...query 
-        });
+        
+        const lastMonthQueryCriteria = { createdAt: { $gte: oneMonthAgo } };
+        if (req.query.searchTerm) {
+            lastMonthQueryCriteria.$text = { $search: req.query.searchTerm };
+        }
+        if (query.category) { // Reuse category from main query if present
+            lastMonthQueryCriteria.category = query.category;
+        }
+        
+        const lastMonthPosts = await Post.countDocuments(lastMonthQueryCriteria);
 
         res.status(200).json({
             posts,
@@ -110,6 +123,7 @@ const getposts = async (req, res, next) => {
             lastMonthPosts,
         });
     } catch (error) {
+        console.error("Error in getposts:", error);
         next(error);
     }
 };
