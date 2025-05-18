@@ -43,6 +43,10 @@ export default function CreatePost() {
     setShowEditorModal(true);
   }, []);
 
+  const handleCloseModal = useCallback(() => {
+    setShowEditorModal(false);
+  }, []);
+
   const handleAddLiveEditorFromModal = () => {
     const quill = quillRef.current?.getEditor();
     if (quill && currentEditorInitialCode.trim()) {
@@ -57,7 +61,7 @@ export default function CreatePost() {
         language: currentEditorLanguage,
         initialCode: currentEditorInitialCode
       }]);
-      setShowEditorModal(false);
+      handleCloseModal();
     } else if (!currentEditorInitialCode.trim()) {
         alert("Initial code cannot be empty.");
     }
@@ -145,7 +149,7 @@ export default function CreatePost() {
       const data = await res.json();
       if (!res.ok) { setPublishError(data.message || 'Failed to create post.'); }
       else { setAlertMessage('Post created successfully!'); setTimeout(() => navigate(`/post/${data.slug}`), 1500); }
-    } catch (error) { setPublishError('Network error creating post.'); console.error(error); }
+    } catch (error) { setPublishError('Network error creating post.'); }
   };
 
   const handleFileChange = (e) => {
@@ -228,7 +232,7 @@ export default function CreatePost() {
         {alertMessage && <div className="mt-5 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md">{alertMessage}</div>}
       </form>
 
-      <Modal show={showEditorModal} onClose={() => setShowEditorModal(false)} popup size="lg">
+      <Modal show={showEditorModal} onClose={handleCloseModal} popup size="lg">
         <Modal.Header>Configure Live Code Editor</Modal.Header>
         <Modal.Body>
           <div className="space-y-4">
@@ -261,7 +265,7 @@ export default function CreatePost() {
         </Modal.Body>
         <Modal.Footer>
           <Button onClick={handleAddLiveEditorFromModal} gradientDuoTone="purpleToPink">Add Editor to Post</Button>
-          <Button color="gray" onClick={() => setShowEditorModal(false)}>Cancel</Button>
+          <Button color="gray" onClick={handleCloseModal}>Cancel</Button>
         </Modal.Footer>
       </Modal>
     </div>

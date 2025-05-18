@@ -69,7 +69,6 @@ export default function UpdatePost() {
         }
       } catch (error) {
         setPublishError('Error fetching post data.');
-        console.error(error);
       }
     };
     if (postId) {
@@ -89,6 +88,11 @@ export default function UpdatePost() {
       }
       setShowEditorModal(true);
     }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setShowEditorModal(false);
+    setEditingEditorId(null);
+  }, []);
 
   const handleAddOrUpdateLiveEditorFromModal = () => {
     const quill = quillRef.current?.getEditor();
@@ -125,8 +129,7 @@ export default function UpdatePost() {
         }]
       }));
     }
-    setShowEditorModal(false);
-    setEditingEditorId(null);
+    handleCloseModal();
   };
 
   const handleDeleteLiveEditor = (editorIdToDelete) => {
@@ -236,7 +239,7 @@ export default function UpdatePost() {
       const data = await res.json();
       if (!res.ok) { setPublishError(data.message || 'Failed to update post.'); }
       else { setAlertMessage('Post updated successfully!'); setTimeout(() => navigate(`/post/${data.slug}`), 1500); }
-    } catch (error) { setPublishError('Network error updating post.'); console.error(error); }
+    } catch (error) { setPublishError('Network error updating post.'); }
   };
 
   const handleFileChange = (e) => {
@@ -344,7 +347,7 @@ export default function UpdatePost() {
         {alertMessage && <div className="mt-5 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md">{alertMessage}</div>}
       </form>
 
-      <Modal show={showEditorModal} onClose={() => {setShowEditorModal(false); setEditingEditorId(null);}} popup size="xl">
+      <Modal show={showEditorModal} onClose={handleCloseModal} popup size="xl">
         <Modal.Header>{editingEditorId ? 'Edit Live Editor Content' : 'Add New Live Code Editor'}</Modal.Header>
         <Modal.Body>
           <div className="space-y-6">
@@ -376,7 +379,7 @@ export default function UpdatePost() {
           <Button onClick={handleAddOrUpdateLiveEditorFromModal} gradientDuoTone="purpleToPink">
             {editingEditorId ? 'Update Editor Code' : 'Add Editor to Post'}
           </Button>
-          <Button color="gray" onClick={() => {setShowEditorModal(false); setEditingEditorId(null);}}>Cancel</Button>
+          <Button color="gray" onClick={handleCloseModal}>Cancel</Button>
         </Modal.Footer>
       </Modal>
     </div>
