@@ -250,6 +250,7 @@ export default function CreatePost() {
                 id="initialCode"
                 value={currentEditorInitialCode}
                 onChange={(e) => setCurrentEditorInitialCode(e.target.value)}
+                autoFocus
                 placeholder="Enter the default code for the editor..."
                 required
                 rows={10}
