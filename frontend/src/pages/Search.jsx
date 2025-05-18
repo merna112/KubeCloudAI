@@ -47,9 +47,15 @@ export default function Search() {
       if (newSidebarData.category && newSidebarData.category !== 'uncategorized') {
         paramsToFetch.set('category', newSidebarData.category);
       }
-      const searchQuery = paramsToFetch.toString();
+      if (newSidebarData.sort) {
+        paramsToFetch.set('sort', newSidebarData.sort);
+      }
+      
+      paramsToFetch.set('limit', POSTS_PER_PAGE);
+      paramsToFetch.set('startIndex', 0);
+
       try {
-        const res = await fetch(`/api/post/getposts?${searchQuery}&limit=${POSTS_PER_PAGE}&startIndex=0`);
+        const res = await fetch(`/api/post/getposts?${paramsToFetch.toString()}`);
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({ message: 'Failed to fetch posts. Server responded with an error.' }));
           throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
@@ -69,12 +75,8 @@ export default function Search() {
   }, [location.search]);
 
   const displayedPosts = useMemo(() => {
-    let postsToDisplay = [...fetchedPosts];
-    if (sidebarData.sort === 'asc') {
-      return postsToDisplay.reverse();
-    }
-    return postsToDisplay;
-  }, [fetchedPosts, sidebarData.sort]);
+    return [...fetchedPosts];
+  }, [fetchedPosts]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -93,7 +95,9 @@ export default function Search() {
     if (sidebarData.category && sidebarData.category !== 'uncategorized') {
       urlParams.set('category', sidebarData.category);
     }
-    urlParams.set('sort', sidebarData.sort);
+    if (sidebarData.sort) {
+      urlParams.set('sort', sidebarData.sort);
+    }
     
     navigate(`/search?${urlParams.toString()}`);
   };
@@ -108,13 +112,15 @@ export default function Search() {
     if (sidebarData.category && sidebarData.category !== 'uncategorized') {
       paramsToFetch.set('category', sidebarData.category);
     }
+    if (sidebarData.sort) {
+        paramsToFetch.set('sort', sidebarData.sort);
+    }
     paramsToFetch.set('startIndex', startIndex);
     paramsToFetch.set('limit', POSTS_PER_PAGE);
 
-    const searchQuery = paramsToFetch.toString();
     setLoading(true);
     try {
-      const res = await fetch(`/api/post/getposts?${searchQuery}`);
+      const res = await fetch(`/api/post/getposts?${paramsToFetch.toString()}`);
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: 'Failed to fetch more posts.'}));
         throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
