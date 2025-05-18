@@ -1,3 +1,4 @@
+// CommentSection.jsx
 import PropTypes from 'prop-types';
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
@@ -12,7 +13,7 @@ export default function CommentSection({ postId }) {
   const [comments, setComments] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState(null);
-  const [showReplyBox, setShowReplyBox] = useState(null); 
+  const [showReplyBox, setShowReplyBox] = useState(null);
   const [replyContent, setReplyContent] = useState({});
   const navigate = useNavigate();
 
@@ -59,7 +60,6 @@ export default function CommentSection({ postId }) {
         body: JSON.stringify({
           content: comment,
           postId,
-          // userId: currentUser._id, // Backend should ideally use req.user.id from token
         }),
       });
 
@@ -93,11 +93,22 @@ export default function CommentSection({ postId }) {
       if (res.ok) {
         const data = await res.json();
         setComments((prev) =>
-          prev.map((c) =>
-            c._id === commentId
-              ? { ...c, likes: data.likes, numberOfLikes: data.likes.length, reaction: newReaction }
-              : c
-          )
+          prev.map((c) => {
+            if (c._id === commentId) {
+              return { ...c, likes: data.likes, numberOfLikes: data.likes.length, reaction: newReaction };
+            }
+            if (c.replies && c.replies.length > 0) {
+              return {
+                ...c,
+                replies: c.replies.map(reply =>
+                  reply._id === commentId
+                    ? { ...reply, likes: data.likes, numberOfLikes: data.likes.length, reaction: newReaction }
+                    : reply
+                )
+              };
+            }
+            return c;
+          })
         );
       }
     } catch (error) {
@@ -120,10 +131,22 @@ export default function CommentSection({ postId }) {
         body: JSON.stringify({ content: newContent }),
       });
       if (res.ok) {
+        const updatedComment = await res.json();
         setComments((prevComments) =>
-          prevComments.map((c) =>
-            c._id === commentId ? { ...c, content: newContent } : c
-          )
+          prevComments.map((c) => {
+            if (c._id === commentId) {
+              return updatedComment;
+            }
+            if (c.replies && c.replies.length > 0) {
+                return {
+                    ...c,
+                    replies: c.replies.map(reply =>
+                        reply._id === commentId ? updatedComment : reply
+                    )
+                };
+            }
+            return c;
+          })
         );
       } else {
         // console.error('Error saving comment edit:', await res.text());
@@ -132,7 +155,7 @@ export default function CommentSection({ postId }) {
       // console.error('Error saving comment edit:', error.message);
     }
   };
-  
+
   const handleDeleteRequest = (commentId) => {
     if (!currentUser) {
         onRequireAuth();
@@ -143,8 +166,8 @@ export default function CommentSection({ postId }) {
   };
 
   const handleDeleteComment = async () => {
-    if (!currentUser || !currentUser.token) { // Added check for token existence
-        onRequireAuth(); 
+    if (!currentUser || !currentUser.token) {
+        onRequireAuth();
         setShowModal(false);
         return;
     }
@@ -157,7 +180,22 @@ export default function CommentSection({ postId }) {
         },
       });
       if (res.ok) {
-        setComments((prev) => prev.filter((c) => c._id !== commentToDelete));
+        setComments((prevComments) =>
+          prevComments.reduce((acc, comment) => {
+            if (comment._id === commentToDelete) {
+              return acc; // Skip the deleted comment
+            }
+            if (comment.replies && comment.replies.length > 0) {
+              const filteredReplies = comment.replies.filter(reply => reply._id !== commentToDelete);
+              if (filteredReplies.length !== comment.replies.length) {
+                acc.push({ ...comment, replies: filteredReplies });
+                return acc;
+              }
+            }
+            acc.push(comment);
+            return acc;
+          }, [])
+        );
       } else {
         // console.error('Error deleting comment:', await res.text());
       }
@@ -182,37 +220,33 @@ export default function CommentSection({ postId }) {
 
   const handleReplySubmit = async (parentCommentId) => {
     const replyText = replyContent[parentCommentId];
-    if (!currentUser || !currentUser.token) { // Added check for token existence
+    if (!currentUser || !currentUser.token) {
       onRequireAuth();
       return;
     }
- 
+
     if (replyText && replyText.trim()) {
       try {
         const res = await fetch(`/api/comment/${parentCommentId}/reply`, {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${currentUser.token}`,
           },
           body: JSON.stringify({
             reply: replyText.trim(),
-            // userId: currentUser._id, // Backend should ideally use req.user.id from token
           }),
         });
- 
+
         if (res.ok) {
-          const updatedCommentWithReplies = await res.json(); 
+          const newReplyData = await res.json();
           setComments((prevComments) =>
             prevComments.map((comment) => {
               if (comment._id === parentCommentId) {
-                return updatedCommentWithReplies;
-              }
-              if (comment.replies && comment.replies.some(r => r._id === parentCommentId)){
                 return {
-                    ...comment,
-                    replies: comment.replies.map(r => r._id === parentCommentId ? updatedCommentWithReplies : r)
-                }
+                  ...comment,
+                  replies: comment.replies ? [...comment.replies, newReplyData] : [newReplyData],
+                };
               }
               return comment;
             })
@@ -220,7 +254,7 @@ export default function CommentSection({ postId }) {
           setReplyContent((prev) => ({ ...prev, [parentCommentId]: '' }));
           setShowReplyBox(null);
         } else {
-          // const errorData = await res.json();
+          // const errorData = await res.json().catch(() => ({ message: 'Failed to submit reply and parse error' }));
           // console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
         }
       } catch (error) {
@@ -259,13 +293,13 @@ export default function CommentSection({ postId }) {
           <div key={c._id} className="border-b dark:border-gray-700 py-3 last:border-b-0">
             <Comment
               comment={c}
-              onLike={handleLikeComment}
-              onEditSave={handleEditSaveComment}
+              onLike={(commentId, reaction) => handleLikeComment(commentId, reaction)}
+              onEditSave={(commentId, content) => handleEditSaveComment(commentId, content)}
               onDeleteRequest={handleDeleteRequest}
               onReplyRequest={handleToggleReplyBox}
               onRequireAuth={onRequireAuth}
             />
-            
+
             {showReplyBox === c._id && (
               <div className="mt-3 ml-12 pl-2 border-l-2 dark:border-gray-700">
                 <textarea
@@ -277,12 +311,14 @@ export default function CommentSection({ postId }) {
                 />
                 <div className="flex justify-end mt-2 gap-2">
                   <button
+                    type="button"
                     className="bg-gray-300 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-400 text-xs dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
                     onClick={() => setShowReplyBox(null)}
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     className="bg-purple-600 text-white px-3 py-1 rounded-md hover:bg-purple-700 text-xs"
                     onClick={() => handleReplySubmit(c._id)}
                   >
@@ -298,8 +334,8 @@ export default function CommentSection({ postId }) {
                   <Comment
                     key={reply._id}
                     comment={reply}
-                    onLike={handleLikeComment}
-                    onEditSave={handleEditSaveComment}
+                    onLike={(commentId, reaction) => handleLikeComment(commentId, reaction)}
+                    onEditSave={(commentId, content) => handleEditSaveComment(commentId, content)}
                     onDeleteRequest={handleDeleteRequest}
                     onReplyRequest={handleToggleReplyBox}
                     onRequireAuth={onRequireAuth}
