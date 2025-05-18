@@ -88,10 +88,13 @@ const getposts = async (req, res, next) => {
 
         if (req.query.searchTerm) {
             query.$text = { $search: req.query.searchTerm };
-            if (requestedSort === 'relevance') { 
-                 sortOptions = { score: { $meta: "textScore" } };
-            } else {
-                 sortOptions = { score: { $meta: "textScore" }, updatedAt: requestedSort === 'asc' ? 1 : -1 };
+            
+            sortOptions = { score: { $meta: "textScore" }, updatedAt: -1 }; 
+
+            if (requestedSort === 'asc') {
+                sortOptions = { updatedAt: 1 }; 
+            } else if (requestedSort === 'desc') {
+                sortOptions = { updatedAt: -1 }; 
             }
         } else {
             sortOptions = { updatedAt: requestedSort === 'asc' ? 1 : -1 };
@@ -111,7 +114,7 @@ const getposts = async (req, res, next) => {
         if (req.query.searchTerm) {
             lastMonthQueryCriteria.$text = { $search: req.query.searchTerm };
         }
-        if (query.category) { // Reuse category from main query if present
+        if (query.category) { 
             lastMonthQueryCriteria.category = query.category;
         }
         
