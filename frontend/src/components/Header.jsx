@@ -65,7 +65,7 @@ export default function Header() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const searchTermFromUrl = urlParams.get('searchterm');
+    const searchTermFromUrl = urlParams.get('searchTerm');
     if (searchTermFromUrl) {
       setSearchTerm(searchTermFromUrl);
     } else {
@@ -102,10 +102,19 @@ export default function Header() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const urlParams = new URLSearchParams(location.search);
-    urlParams.set('searchterm', searchTerm);
-    const searchQuery = urlParams.toString();
-    navigate(`/search?${searchQuery}`);
+    const urlParams = new URLSearchParams();
+    if (searchTerm.trim()) {
+      urlParams.set('searchTerm', searchTerm);
+    }
+    const currentParams = new URLSearchParams(location.search);
+    if (currentParams.get('sort')) {
+        urlParams.set('sort', currentParams.get('sort'));
+    }
+    if (currentParams.get('category') && currentParams.get('category') !== 'uncategorized') {
+        urlParams.set('category', currentParams.get('category'));
+    }
+
+    navigate(`/search?${urlParams.toString()}`);
     if (isNavOpen) setIsNavOpen(false);
   };
 
@@ -126,7 +135,7 @@ export default function Header() {
             <form onSubmit={handleSubmit} className="flex items-center">
               <input
                 type="text"
-                placeholder={searchTerm ? "" : animatedPlaceholder}
+                placeholder={animatedPlaceholder}
                 className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full py-2 pl-5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-base w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -291,7 +300,7 @@ export default function Header() {
         <form onSubmit={handleSubmit} className="relative mt-3">
           <input
             type="text"
-            placeholder={searchTerm ? "" : animatedPlaceholder}
+            placeholder={animatedPlaceholder}
             className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full py-2 pl-5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 w-full text-base"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
