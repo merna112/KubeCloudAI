@@ -29,7 +29,7 @@ export default function CommentSection({ postId }) {
           setComments(data);
         }
       } catch (error) {
-        console.error('Error fetching comments:', error);
+        // console.error('Error fetching comments:', error);
       }
     };
     getComments();
@@ -72,7 +72,6 @@ export default function CommentSection({ postId }) {
       }
     } catch (error) {
       setCommentError('Error submitting comment');
-      console.error('Comment submission error:', error);
     }
   };
 
@@ -98,7 +97,7 @@ export default function CommentSection({ postId }) {
         );
       }
     } catch (error) {
-      console.error('Error liking comment:', error);
+      // console.error('Error liking comment:', error);
     }
   };
 
@@ -120,10 +119,10 @@ export default function CommentSection({ postId }) {
           )
         );
       } else {
-        console.error('Error saving comment edit:', await res.text());
+        // console.error('Error saving comment edit:', await res.text());
       }
     } catch (error) {
-      console.error('Error saving comment edit:', error.message);
+      // console.error('Error saving comment edit:', error.message);
     }
   };
   
@@ -138,7 +137,7 @@ export default function CommentSection({ postId }) {
 
   const handleDeleteComment = async () => {
     if (!currentUser) {
-        onRequireAuth(); // Should ideally be protected by modal trigger logic
+        onRequireAuth(); 
         setShowModal(false);
         return;
     }
@@ -150,10 +149,10 @@ export default function CommentSection({ postId }) {
       if (res.ok) {
         setComments((prev) => prev.filter((c) => c._id !== commentToDelete));
       } else {
-         console.error('Error deleting comment:', await res.text());
+        // console.error('Error deleting comment:', await res.text());
       }
     } catch (error) {
-      console.error('Error deleting comment:', error);
+      // console.error('Error deleting comment:', error);
     } finally {
         setShowModal(false);
         setCommentToDelete(null);
@@ -198,7 +197,6 @@ export default function CommentSection({ postId }) {
               if (comment._id === parentCommentId) {
                 return updatedCommentWithReplies;
               }
-              // For nested replies, we might need to search deeper or ensure API returns full parent
               if (comment.replies && comment.replies.some(r => r._id === parentCommentId)){
                 return {
                     ...comment,
@@ -211,11 +209,11 @@ export default function CommentSection({ postId }) {
           setReplyContent((prev) => ({ ...prev, [parentCommentId]: '' }));
           setShowReplyBox(null);
         } else {
-          const errorData = await res.json();
-          console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
+          // const errorData = await res.json();
+          // console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
         }
       } catch (error) {
-        console.error('Error submitting reply (network/client):', error.message);
+        // console.error('Error submitting reply (network/client):', error.message);
       }
     }
   };
@@ -261,7 +259,7 @@ export default function CommentSection({ postId }) {
               <div className="mt-3 ml-12 pl-2 border-l-2 dark:border-gray-700">
                 <textarea
                   className="w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                  placeholder={`Replying to @${c.userId.username || 'user'}...`}
+                  placeholder={`Replying to @${c.userId?.username || 'user'}...`}
                   value={replyContent[c._id] || ''}
                   onChange={(e) => handleReplyChange(c._id, e.target.value)}
                   rows="2"
