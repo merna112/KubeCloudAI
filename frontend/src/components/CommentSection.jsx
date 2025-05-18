@@ -24,6 +24,7 @@ export default function CommentSection({ postId }) {
         setComments([]);
       }
     } catch (error) {
+      console.error('Error fetching comments:', error);
       setComments([]);
     }
   }, [postId]);
@@ -55,6 +56,7 @@ export default function CommentSection({ postId }) {
       }
     } catch (error) {
       setCommentError('Error submitting comment');
+      console.error('Comment submission error:', error);
     }
   };
 
@@ -63,10 +65,24 @@ export default function CommentSection({ postId }) {
     try {
       const res = await fetch(`/api/comment/likeComment/${commentId}`, { method: 'PUT' });
       if (res.ok) {
-        fetchComments();
+        const updatedComment = await res.json();
+        setComments(prevComments => 
+          prevComments.map(c => {
+            if (c._id === commentId) return { ...c, likes: updatedComment.likes, numberOfLikes: updatedComment.numberOfLikes };
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map(r => 
+                  r._id === commentId ? { ...r, likes: updatedComment.likes, numberOfLikes: updatedComment.numberOfLikes } : r
+                )
+              };
+            }
+            return c;
+          })
+        );
       }
     } catch (error) {
-      // console.error('Error liking comment:', error);
+      console.error('Error liking comment:', error);
     }
   };
 
@@ -79,10 +95,24 @@ export default function CommentSection({ postId }) {
         body: JSON.stringify({ content: newContent }),
       });
       if (res.ok) {
-        fetchComments();
+        const updatedComment = await res.json();
+         setComments(prevComments => 
+          prevComments.map(c => {
+            if (c._id === commentId) return { ...c, content: updatedComment.content };
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map(r => 
+                  r._id === commentId ? { ...r, content: updatedComment.content } : r
+                )
+              };
+            }
+            return c;
+          })
+        );
       }
     } catch (error) {
-      // console.error('Error editing comment:', error);
+      console.error('Error editing comment:', error);
     }
   };
 
@@ -94,15 +124,34 @@ export default function CommentSection({ postId }) {
 
   const handleDeleteComment = async () => {
     if (!currentUser || !commentIdToDelete) return;
+    const originalComments = JSON.parse(JSON.stringify(comments)); 
+
+    setComments(prevComments => {
+      const filterRecursive = (list, idToDelete) => {
+        return list
+          .filter(comment => comment._id !== idToDelete)
+          .map(comment => ({
+            ...comment,
+            replies: comment.replies ? filterRecursive(comment.replies, idToDelete) : []
+          }));
+      };
+      return filterRecursive(prevComments, commentIdToDelete);
+    });
+    setShowDeleteModal(false);
+    
     try {
       const res = await fetch(`/api/comment/deleteComment/${commentIdToDelete}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchComments();
-        setShowDeleteModal(false);
-        setCommentIdToDelete(null);
+      if (!res.ok) {
+        setComments(originalComments);
+        console.error('Failed to delete comment from server');
+        alert('Failed to delete comment. Please try again.');
       }
+      setCommentIdToDelete(null);
     } catch (error) {
-      // console.error('Error deleting comment:', error);
+      console.error('Error deleting comment:', error);
+      setComments(originalComments);
+      alert('Error deleting comment. Please try again.');
+      setCommentIdToDelete(null);
     }
   };
 
@@ -116,57 +165,25 @@ export default function CommentSection({ postId }) {
         body: JSON.stringify({ reply: replyText.trim() }),
       });
       if (res.ok) {
-        fetchComments();
+        fetchComments(); 
       } else {
-        // const errorData = await res.json();
-        // console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
+        const errorData = await res.json();
+        console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
       }
     } catch (error) {
-      // console.error('Error submitting reply:', error);
+      console.error('Error submitting reply:', error);
     }
   };
-
-  const RenderCommentsRecursive = ({ commentList, isReplyLayer = false }) => {
-    if (!commentList || commentList.length === 0) return null;
-    return (
-      <div className={isReplyLayer ? "ml-4 pl-4 border-l-2 dark:border-gray-600" : ""}>
-        {commentList.map((c) => (
-          <div key={c._id} className="my-1 py-1">
-            <Comment
-              comment={c}
-              onLike={handleLikeComment}
-              onEditSubmit={handleEditComment}
-              onDelete={openDeleteModal}
-              onReplySubmit={handleReplyToComment}
-              isReply={isReplyLayer}
-              onRequireAuth={() => navigate('/sign-in')}
-            />
-            {c.replies && c.replies.length > 0 && (
-              <RenderCommentsRecursive commentList={c.replies} isReplyLayer={true} />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-  RenderCommentsRecursive.propTypes = {
-    commentList: PropTypes.array.isRequired,
-    isReplyLayer: PropTypes.bool
-  };
-
+  
   const countAllCommentsAndReplies = (commentsArray) => {
     let total = 0;
-    const countRecursively = (items) => {
-      items.forEach(item => {
-        total++;
-        if (item.replies && item.replies.length > 0) {
-          countRecursively(item.replies);
-        }
-      });
-    };
-    if (commentsArray) {
-      countRecursively(commentsArray);
-    }
+    if (!commentsArray) return 0;
+    commentsArray.forEach(comment => {
+      total++; 
+      if (comment.replies && comment.replies.length > 0) {
+        total += countAllCommentsAndReplies(comment.replies); 
+      }
+    });
     return total;
   };
 
@@ -201,7 +218,35 @@ export default function CommentSection({ postId }) {
               <p>{countAllCommentsAndReplies(comments)}</p>
             </div>
           </div>
-          <RenderCommentsRecursive commentList={comments} />
+          {comments.map((comment) => (
+            <div key={comment._id} className="my-2 pb-2 border-b dark:border-gray-700 last:border-b-0">
+              <Comment
+                comment={comment}
+                onLike={handleLikeComment}
+                onEditSubmit={handleEditComment}
+                onDelete={openDeleteModal}
+                onReplySubmit={handleReplyToComment}
+                isReply={false} 
+                onRequireAuth={() => navigate('/sign-in')}
+              />
+              {comment.replies && comment.replies.length > 0 && (
+                <div className="ml-5 pl-5 border-l-2 dark:border-gray-600 mt-3 space-y-3">
+                  {comment.replies.map((reply) => (
+                    <Comment
+                      key={reply._id}
+                      comment={reply}
+                      onLike={handleLikeComment}
+                      onEditSubmit={handleEditComment}
+                      onDelete={openDeleteModal}
+                      onReplySubmit={handleReplyToComment}
+                      isReply={true}
+                      onRequireAuth={() => navigate('/sign-in')}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </>
       ) : (
         <p className="text-sm text-gray-500 my-5">No comments yet.</p>
@@ -214,7 +259,7 @@ export default function CommentSection({ postId }) {
                <div className="p-6 text-center">
                  <HiOutlineExclamationCircle className="mx-auto mb-4 h-14 w-14 text-gray-400 dark:text-gray-200" />
                  <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
-                   Are you sure you want to delete this comment and all its replies?
+                   Are you sure you want to delete this comment?
                  </h3>
                  <div className="flex justify-center gap-4">
                    <button onClick={handleDeleteComment} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">

@@ -90,7 +90,7 @@ export default function Comment({
   const canEditOrDelete = currentUser && (currentUser._id === commentAuthorId || currentUser.isAdmin);
 
   return (
-    <div className={`flex flex-col p-3 border-b dark:border-gray-700 text-sm ${isReply ? 'ml-4 bg-gray-50 dark:bg-gray-700 rounded-md mt-2' : 'my-2'}`}>
+    <div className={`flex flex-col p-3 text-sm ${isReply ? 'ml-5 pl-5 border-l-2 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md mt-2' : 'my-2 border-b dark:border-gray-700'}`}>
       <div className="flex items-start">
         <img
           className="w-8 h-8 rounded-full bg-gray-200 mr-3"
