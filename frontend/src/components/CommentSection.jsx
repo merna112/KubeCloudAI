@@ -14,38 +14,23 @@ export default function CommentSection({ postId }) {
   const [commentIdToDelete, setCommentIdToDelete] = useState(null);
   const navigate = useNavigate();
 
-  const fetchAndBuildTree = useCallback(async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const res = await fetch(`/api/comment/getPostComments/${postId}`);
       if (res.ok) {
-        const flatComments = await res.json();
-        const commentMap = {};
-        const tree = [];
-        (flatComments || []).forEach(comment => {
-          commentMap[comment._id] = { ...comment, replies: [] };
-        });
-        (flatComments || []).forEach(comment => {
-          if (comment.parentId && commentMap[comment.parentId]) {
-            commentMap[comment.parentId].replies.push(commentMap[comment._id]);
-            commentMap[comment.parentId].replies.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
-          } else if (!comment.parentId) {
-            tree.push(commentMap[comment._id]);
-          }
-        });
-        tree.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setComments(tree);
+        const data = await res.json();
+        setComments(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       } else {
         setComments([]);
       }
     } catch (error) {
-      console.error('Error fetching comments:', error);
       setComments([]);
     }
   }, [postId]);
 
   useEffect(() => {
-    fetchAndBuildTree();
-  }, [postId, fetchAndBuildTree]);
+    fetchComments();
+  }, [postId, fetchComments]);
 
   const handleMainCommentSubmit = async (e) => {
     e.preventDefault();
@@ -63,14 +48,13 @@ export default function CommentSection({ postId }) {
       if (res.ok) {
         setCommentContent('');
         setCommentError(null);
-        fetchAndBuildTree();
+        fetchComments();
       } else {
         const data = await res.json();
         setCommentError(data.message || 'Failed to add comment');
       }
     } catch (error) {
       setCommentError('Error submitting comment');
-      console.error('Error submitting comment:', error);
     }
   };
 
@@ -79,10 +63,10 @@ export default function CommentSection({ postId }) {
     try {
       const res = await fetch(`/api/comment/likeComment/${commentId}`, { method: 'PUT' });
       if (res.ok) {
-        fetchAndBuildTree();
+        fetchComments();
       }
     } catch (error) {
-      console.error('Error liking comment:', error);
+      // console.error('Error liking comment:', error);
     }
   };
 
@@ -95,10 +79,10 @@ export default function CommentSection({ postId }) {
         body: JSON.stringify({ content: newContent }),
       });
       if (res.ok) {
-        fetchAndBuildTree();
+        fetchComments();
       }
     } catch (error) {
-      console.error('Error editing comment:', error);
+      // console.error('Error editing comment:', error);
     }
   };
 
@@ -113,12 +97,12 @@ export default function CommentSection({ postId }) {
     try {
       const res = await fetch(`/api/comment/deleteComment/${commentIdToDelete}`, { method: 'DELETE' });
       if (res.ok) {
-        fetchAndBuildTree();
+        fetchComments();
         setShowDeleteModal(false);
         setCommentIdToDelete(null);
       }
     } catch (error) {
-      console.error('Error deleting comment:', error);
+      // console.error('Error deleting comment:', error);
     }
   };
 
@@ -132,22 +116,22 @@ export default function CommentSection({ postId }) {
         body: JSON.stringify({ reply: replyText.trim() }),
       });
       if (res.ok) {
-        fetchAndBuildTree();
+        fetchComments();
       } else {
-        const errorData = await res.json();
-        console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
+        // const errorData = await res.json();
+        // console.error('Error submitting reply (server):', errorData.message || 'Failed to submit reply');
       }
     } catch (error) {
-      console.error('Error submitting reply:', error);
+      // console.error('Error submitting reply:', error);
     }
   };
 
-  const RenderComments = ({ commentList, isReplyLayer = false }) => {
+  const RenderCommentsRecursive = ({ commentList, isReplyLayer = false }) => {
     if (!commentList || commentList.length === 0) return null;
     return (
-      <div className={isReplyLayer ? "ml-5 pl-5 border-l-2 dark:border-gray-700" : ""}>
+      <div className={isReplyLayer ? "ml-4 pl-4 border-l-2 dark:border-gray-600" : ""}>
         {commentList.map((c) => (
-          <div key={c._id} className="my-0">
+          <div key={c._id} className="my-1 py-1">
             <Comment
               comment={c}
               onLike={handleLikeComment}
@@ -158,33 +142,33 @@ export default function CommentSection({ postId }) {
               onRequireAuth={() => navigate('/sign-in')}
             />
             {c.replies && c.replies.length > 0 && (
-              <RenderComments commentList={c.replies} isReplyLayer={true} />
+              <RenderCommentsRecursive commentList={c.replies} isReplyLayer={true} />
             )}
           </div>
         ))}
       </div>
     );
   };
-  RenderComments.propTypes = {
+  RenderCommentsRecursive.propTypes = {
     commentList: PropTypes.array.isRequired,
     isReplyLayer: PropTypes.bool
   };
 
-
-  const countAllComments = (commentsToCount) => {
-    let count = 0;
-    function counter(items) {
+  const countAllCommentsAndReplies = (commentsArray) => {
+    let total = 0;
+    const countRecursively = (items) => {
       items.forEach(item => {
-        count++;
+        total++;
         if (item.replies && item.replies.length > 0) {
-          counter(item.replies);
+          countRecursively(item.replies);
         }
       });
+    };
+    if (commentsArray) {
+      countRecursively(commentsArray);
     }
-    counter(commentsToCount);
-    return count;
+    return total;
   };
-
 
   return (
     <div className="max-w-2xl mx-auto w-full p-3">
@@ -214,10 +198,10 @@ export default function CommentSection({ postId }) {
           <div className="text-sm my-5 flex items-center gap-1">
             <p>Comments</p>
             <div className="border border-gray-400 py-1 px-2 rounded-sm">
-              <p>{countAllComments(comments)}</p>
+              <p>{countAllCommentsAndReplies(comments)}</p>
             </div>
           </div>
-          <RenderComments commentList={comments} />
+          <RenderCommentsRecursive commentList={comments} />
         </>
       ) : (
         <p className="text-sm text-gray-500 my-5">No comments yet.</p>
