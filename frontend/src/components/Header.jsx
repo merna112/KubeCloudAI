@@ -102,19 +102,24 @@ export default function Header() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const urlParams = new URLSearchParams();
-    if (searchTerm.trim()) {
-      urlParams.set('searchTerm', searchTerm);
-    }
     const currentParams = new URLSearchParams(location.search);
-    if (currentParams.get('sort')) {
-        urlParams.set('sort', currentParams.get('sort'));
-    }
-    if (currentParams.get('category') && currentParams.get('category') !== 'uncategorized') {
-        urlParams.set('category', currentParams.get('category'));
+    const newParams = new URLSearchParams();
+
+    if (searchTerm.trim()) {
+      newParams.set('searchTerm', searchTerm);
+    } else {
+      newParams.delete('searchTerm');
     }
 
-    navigate(`/search?${urlParams.toString()}`);
+    const sortParam = currentParams.get('sort') || 'desc';
+    newParams.set('sort', sortParam);
+
+    const categoryParam = currentParams.get('category');
+    if (categoryParam && categoryParam !== 'uncategorized') {
+        newParams.set('category', categoryParam);
+    }
+    
+    navigate(`/search?${newParams.toString()}`);
     if (isNavOpen) setIsNavOpen(false);
   };
 
