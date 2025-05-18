@@ -2,23 +2,12 @@ import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { formatDistanceToNow } from 'date-fns';
-import { FaThumbsUp as ThumbUpIcon, FaEdit, FaTrashAlt, FaReply } from 'react-icons/fa';
+import { FaThumbsUp as ThumbUpIcon, FaEdit, FaTrash, FaReply } from 'react-icons/fa';
 
-export default function Comment({
-  comment,
-  onLike,
-  onEditSubmit,
-  onDelete,
-  onReplySubmit,
-  isReply = false,
-  onRequireAuth,
-}) {
+export default function Comment({ comment, onLike, onEditSave, onDeleteRequest, onReplyRequest, onRequireAuth }) {
   const [user, setUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(comment.content);
-  const [showReplyForm, setShowReplyForm] = useState(false);
-  const [replyContent, setReplyContent] = useState('');
-  
   const { currentUser } = useSelector((state) => state.user);
 
   useEffect(() => {
@@ -27,155 +16,160 @@ export default function Comment({
         setUser({ username: 'Unknown User', profilePicture: '/default-profile.png' });
         return;
       }
-      if (typeof comment.userId === 'object' && comment.userId !== null && comment.userId.username) {
-        setUser(comment.userId);
+      let userIdToFetch;
+      if (typeof comment.userId === 'object' && comment.userId !== null) {
+        if (comment.userId.username && typeof comment.userId.profilePicture !== 'undefined') {
+          setUser(comment.userId);
+          return;
+        }
+        userIdToFetch = comment.userId._id;
+      } else if (typeof comment.userId === 'string') {
+        userIdToFetch = comment.userId;
+      } else {
+        console.error("Unexpected type for comment.userId:", comment.userId, "for comment:", comment._id);
+        setUser({ username: 'Invalid User Data', profilePicture: '/default-profile.png' });
         return;
       }
-      const userIdToFetch = typeof comment.userId === 'object' ? comment.userId._id : comment.userId;
+
       if (!userIdToFetch) {
+        console.error("userIdToFetch is undefined for comment:", comment._id);
         setUser({ username: 'User ID Error', profilePicture: '/default-profile.png' });
         return;
       }
+
       try {
         const res = await fetch(`/api/user/${userIdToFetch}`);
         if (!res.ok) {
-          setUser({ username: 'User Not Found', profilePicture: '/default-profile.png' });
+          if (res.status === 404) {
+            setUser({ username: 'User Not Found', profilePicture: '/default-profile.png' });
+          } else {
+            throw new Error(`Failed to fetch user: ${res.status}`);
+          }
           return;
         }
         const data = await res.json();
         setUser(data);
       } catch (error) {
+        console.error(`Error fetching user data for comment ${comment._id}:`, error.message);
         setUser({ username: 'Error Loading User', profilePicture: '/default-profile.png' });
       }
     };
     fetchCommentUser();
-  }, [comment.userId]);
+  }, [comment.userId, comment._id]);
 
-  const handleEdit = () => {
+  const commentAuthorId = (typeof comment.userId === 'object' && comment.userId !== null) ? comment.userId._id : comment.userId;
+  const isOwner = currentUser && commentAuthorId && currentUser._id === commentAuthorId;
+  const isAdmin = currentUser && currentUser.isAdmin;
+  const canEditDelete = isOwner || isAdmin;
+
+  const handleEditClick = () => {
     setIsEditing(true);
     setEditedContent(comment.content);
   };
 
-  const handleSaveEdit = async () => {
-    if (!currentUser) { if (onRequireAuth) onRequireAuth(); return; }
-    if (editedContent.trim() === '') return;
-    await onEditSubmit(comment._id, editedContent.trim());
+  const handleSaveClick = () => {
+    if (!currentUser) {
+        onRequireAuth();
+        return;
+    }
+    onEditSave(comment._id, editedContent);
     setIsEditing(false);
   };
 
-  const handleDelete = () => {
-    if (!currentUser) { if (onRequireAuth) onRequireAuth(); return; }
-    onDelete(comment._id);
+  const handleDeleteClick = () => {
+     if (!currentUser) { // Should not be reachable if button is hidden, but for safety
+        onRequireAuth();
+        return;
+    }
+    onDeleteRequest(comment._id);
   };
 
-  const handleToggleReplyForm = () => {
-    if (!currentUser) { if (onRequireAuth) onRequireAuth(); return; }
-    setShowReplyForm(!showReplyForm);
-  };
-
-  const handleLocalReplySubmit = () => {
-    if (!currentUser) { if (onRequireAuth) onRequireAuth(); return; }
-    if (replyContent.trim() === '') return;
-    onReplySubmit(comment._id, replyContent.trim());
-    setReplyContent('');
-    setShowReplyForm(false);
-  };
-  
   const handleLikeClick = () => {
-    if (!currentUser) { if (onRequireAuth) onRequireAuth(); return; }
-    onLike(comment._id);
+    if (!currentUser) {
+      onRequireAuth();
+      return;
+    }
+    const newReaction = comment.reaction === 'like' ? null : 'like';
+    onLike(comment._id, newReaction);
   };
 
-  const commentAuthorId = typeof comment.userId === 'object' && comment.userId !== null ? comment.userId._id : comment.userId;
-  const canEditOrDelete = currentUser && (currentUser._id === commentAuthorId || currentUser.isAdmin);
+  const handleReplyClick = () => {
+    if (!currentUser) {
+      onRequireAuth();
+      return;
+    }
+    onReplyRequest(comment._id);
+  };
 
   return (
-    <div className={`flex flex-col p-3 text-sm ${isReply ? 'ml-5 pl-5 border-l-2 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md mt-2' : 'my-2 border-b dark:border-gray-700'}`}>
-      <div className="flex items-start">
+    <div className="flex flex-col p-4 border-b dark:border-gray-600 text-sm">
+      <div className="flex-shrink-0 mb-2">
         <img
-          className="w-8 h-8 rounded-full bg-gray-200 mr-3"
+          className="w-10 h-10 rounded-full bg-gray-200"
           src={user?.profilePicture || '/default-profile.png'}
           alt={user?.username || 'User'}
         />
-        <div className="flex-1">
-          <div className="flex items-center mb-1">
-            <span className="font-bold mr-1 text-xs truncate">
-              {user?.username ? `@${user.username}` : 'Anonymous user'}
-            </span>
-            <span className="text-gray-500 text-xs">
-              {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-            </span>
-          </div>
-          {isEditing && canEditOrDelete ? (
-            <>
-              <textarea
-                className="w-full mb-2 p-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white focus:ring-cyan-500 focus:border-cyan-500"
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                rows={3}
-              />
-              <div className="flex justify-end gap-2 text-xs">
-                <button type="button" className="text-green-500 hover:underline font-medium" onClick={handleSaveEdit}>Save</button>
-                <button type="button" className="text-gray-500 hover:underline font-medium" onClick={() => setIsEditing(false)}>Cancel</button>
-              </div>
-            </>
-          ) : (
-            <p className="text-gray-600 dark:text-gray-300 pb-2 break-words">{comment.content}</p>
-          )}
-          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center mb-1">
+          <span className="font-bold mr-1 text-xs truncate">
+            {user ? (user.username !== 'Unknown User' && user.username !== 'User Not Found' && user.username !== 'Error Loading User' && user.username !== 'Invalid User Data' && user.username !== 'User ID Error' ? `@${user.username}` : user.username) : 'Loading user...'}
+          </span>
+          <span className="text-gray-500 text-xs ml-1">
+            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+          </span>
+        </div>
+        {isEditing ? (
+          <>
+            <textarea
+              className="w-full mb-2 p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              rows={3}
+            />
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                type="button"
+                className="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700 text-xs"
+                onClick={handleSaveClick}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded-md hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 text-xs"
+                onClick={() => setIsEditing(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-600 dark:text-gray-300 pb-2 whitespace-pre-line">{comment.content}</p>
+        )}
+        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
             <button
-              type="button"
               onClick={handleLikeClick}
-              className={`hover:text-blue-600 flex items-center ${comment.likes?.includes(currentUser?._id) ? 'text-blue-700 dark:text-blue-500' : 'dark:hover:text-blue-400'}`}
-              title="Like"
+              className={`flex items-center hover:text-purple-600 ${comment.reaction === 'like' ? 'text-purple-600' : ''}`}
             >
-              <ThumbUpIcon className="w-3.5 h-3.5 mr-1" />
-              {comment.numberOfLikes > 0 && (
-                <span>{comment.numberOfLikes}</span>
-              )}
+              <ThumbUpIcon className={`w-4 h-4 mr-1 ${comment.reaction === 'like' ? 'fill-current' : ''}`} />
+              Like ({comment.numberOfLikes || 0})
             </button>
             
-            {currentUser && (
-                <button type="button" className="hover:underline dark:hover:text-gray-200" onClick={handleToggleReplyForm}>
-                    Reply
-                </button>
-            )}
+            <button onClick={handleReplyClick} className="flex items-center hover:text-purple-600">
+                <FaReply className="w-4 h-4 mr-1" /> Reply
+            </button>
 
-            {canEditOrDelete && (
+            {canEditDelete && (
               <>
-                <button type="button" className="hover:underline dark:hover:text-gray-200" onClick={handleEdit}>Edit</button>
-                <button type="button" className="hover:underline text-red-500 dark:hover:text-red-400" onClick={handleDelete}>Delete</button>
+                <button onClick={handleEditClick} className="flex items-center hover:text-blue-500">
+                    <FaEdit className="w-4 h-4 mr-1" /> Edit
+                </button>
+                <button onClick={handleDeleteClick} className="flex items-center hover:text-red-500">
+                    <FaTrash className="w-4 h-4 mr-1" /> Delete
+                </button>
               </>
             )}
-          </div>
-
-          {showReplyForm && currentUser && (
-            <div className="mt-3">
-              <textarea
-                className="w-full p-2 text-sm border-gray-300 focus:border-cyan-500 focus:ring-cyan-500 rounded-md dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600"
-                placeholder={`Replying to @${user?.username || 'user'}...`}
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                rows={2}
-              />
-              <div className="flex justify-end mt-2 gap-2">
-                <button
-                  type="button"
-                  className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
-                  onClick={() => setShowReplyForm(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-md hover:bg-blue-600"
-                  onClick={handleLocalReplySubmit}
-                >
-                  Submit Reply
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -183,11 +177,17 @@ export default function Comment({
 }
 
 Comment.propTypes = {
-  comment: PropTypes.object.isRequired,
+  comment: PropTypes.shape({
+    _id: PropTypes.string.isRequired,
+    userId: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
+    content: PropTypes.string.isRequired,
+    createdAt: PropTypes.string.isRequired,
+    reaction: PropTypes.string,
+    numberOfLikes: PropTypes.number,
+  }).isRequired,
   onLike: PropTypes.func.isRequired,
-  onEditSubmit: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  onReplySubmit: PropTypes.func.isRequired,
-  isReply: PropTypes.bool,
-  onRequireAuth: PropTypes.func,
+  onEditSave: PropTypes.func.isRequired,
+  onDeleteRequest: PropTypes.func.isRequired,
+  onReplyRequest: PropTypes.func.isRequired,
+  onRequireAuth: PropTypes.func.isRequired,
 };
