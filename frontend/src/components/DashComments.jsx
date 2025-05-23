@@ -31,6 +31,7 @@ export default function DashComments() {
           setShowMore(false);
         }
       } catch (error) {
+        console.error("Error fetching comments:", error.message);
         setComments([]);
         setShowMore(false);
       } finally {
@@ -43,9 +44,9 @@ export default function DashComments() {
     } else {
       setComments([]);
       setShowMore(false);
-      setLoading(false);
+      setLoading(false); 
     }
-  }, [currentUser?.isAdmin, currentUser?._id]);
+  }, [currentUser]); 
 
   const handleShowMore = async () => {
     const startIndex = comments.length;
@@ -61,7 +62,7 @@ export default function DashComments() {
         }
       }
     } catch (error) {
-      console.log(error.message);
+      console.log(error.message); 
     }
   };
 
@@ -80,10 +81,10 @@ export default function DashComments() {
           prev.filter((comment) => comment._id !== commentIdToDelete)
         );
       } else {
-        console.log(data.message);
+        console.log(data.message); 
       }
     } catch (error) {
-      console.log(error.message);
+      console.log(error.message); 
     }
   };
 
@@ -117,7 +118,6 @@ export default function DashComments() {
 
   return (
     <div className='px-2 py-4 sm:px-4 md:p-6 w-full mx-auto dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen'>
-      {/* Table for medium screens and up (md breakpoint) */}
       <div className="hidden md:block shadow-md rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto">
         <table className='min-w-full w-full divide-y divide-gray-200 dark:divide-gray-700'>
           <thead className='bg-gray-50 dark:bg-gray-700/50'>
@@ -133,6 +133,9 @@ export default function DashComments() {
               </th>
               <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
                 Post ID
+              </th>
+              <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
+                User
               </th>
               <th scope='col' className='px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap'>
                 User ID
@@ -158,7 +161,19 @@ export default function DashComments() {
                   {comment.postId}
                 </td>
                 <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
-                  {comment.userId}
+                  <div className="flex items-center">
+                    {comment.userId?.profilePicture && (
+                      <img
+                        src={comment.userId.profilePicture}
+                        alt={comment.userId.username || ''}
+                        className="h-8 w-8 rounded-full mr-2 object-cover"
+                      />
+                    )}
+                    <span>{comment.userId?.username || 'Unknown User'}</span>
+                  </div>
+                </td>
+                <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300'>
+                  {comment.userId?._id || 'N/A'}
                 </td>
                 <td className='px-3 py-4 whitespace-nowrap text-sm'>
                   <button
@@ -167,7 +182,7 @@ export default function DashComments() {
                       setCommentIdToDelete(comment._id);
                     }}
                     className='font-medium text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-400 hover:underline focus:outline-none'
-                    aria-label={`Delete comment by user ${comment.userId}`}
+                    aria-label={`Delete comment by user ${comment.userId?.username || comment.userId?._id || 'Unknown'}`}
                   >
                     Delete
                   </button>
@@ -178,7 +193,6 @@ export default function DashComments() {
         </table>
       </div>
 
-      {/* Cards for small screens (up to md breakpoint) */}
       <div className="md:hidden space-y-4">
         {comments.map((comment) => (
           <div key={comment._id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
@@ -200,9 +214,27 @@ export default function DashComments() {
                 <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">Post ID:</span>
                 <p className="text-gray-700 dark:text-gray-300 truncate" title={comment.postId}>{comment.postId}</p>
               </div>
-              <div>
-                <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">User ID:</span>
-                <p className="text-gray-700 dark:text-gray-300 truncate" title={comment.userId}>{comment.userId}</p>
+              <div className="col-span-2">
+                <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">User:</span>
+                {comment.userId ? (
+                  <div className="flex items-center mt-1">
+                    {comment.userId.profilePicture && (
+                      <img
+                        src={comment.userId.profilePicture}
+                        alt={comment.userId.username || ''}
+                        className="h-8 w-8 rounded-full mr-2 object-cover"
+                      />
+                    )}
+                    <div className="text-sm">
+                      <p className="text-gray-800 dark:text-gray-200 font-medium">{comment.userId.username || 'Unknown User'}</p>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs truncate" title={comment.userId._id}>
+                        ID: {comment.userId._id || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-700 dark:text-gray-300">Unavailable</p>
+                )}
               </div>
             </div>
 
