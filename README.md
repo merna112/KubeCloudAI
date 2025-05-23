@@ -106,7 +106,7 @@ Please follow the existing coding style and naming conventions.
 Developed by [Merna Adel](www.linkedin.com/in/merna-adel-4b4426269)
 
 📧 Email: mernaadel182@gmail.com
-🔗 LinkedIn: [linkedin.com/in/your-profile](www.linkedin.com/in/merna-adel-4b4426269)
+🔗 LinkedIn: [linkedin.com/in/MernaAdel](www.linkedin.com/in/merna-adel-4b4426269)
 
 ---
 
